@@ -1,103 +1,111 @@
-# 교과서가 멈춘 곳에서 — 더블 디센트 · 그로킹 재현 실험실
+# Where the Textbook Stops — A Double Descent · Grokking Reproduction Lab
 
-> **AI기초 심화 탐구 · 브라우저 안에서 돌아가는 직접 재현 실험 노트**
+**[English](README.md) · [한국어](README.ko.md)**
+
+> **An AI-fundamentals deep-dive · a hands-on reproduction lab notebook that runs entirely in your browser.**
 >
-> 교과서는 "모델이 복잡하면 과적합"이라고 가르친다. 그렇다면 파라미터가 데이터보다 압도적으로 많은 GPT급 거대 모델은 왜 잘 작동하는가?
-> 이 페이지는 그 교과서 명제가 깨지는 두 현상 — **더블 디센트**와 **그로킹** — 을 외부 데이터·서버 없이 **브라우저 안에서 실제 수치 시뮬레이션으로 재현**한다. 그래프의 모든 점은 지금 이 기기에서 계산된 값이다.
+> The textbook says "a complex model overfits." So why does a GPT-scale model — with far more parameters than data — work so well?
+> This page reproduces two phenomena that break that textbook claim — **double descent** and **grokking** — with **real numerical simulation inside your browser**, no external data and no server. Every point on every chart is computed right now, on your device.
 
-**단일 HTML 파일**로 되어 있어 설치가 필요 없다. 그냥 열면 된다.
+It's a **single HTML file** — nothing to install. Just open it.
 
----
-
-## 🔬 지금 바로 실행하기
-
-- **온라인 데모:** [GitHub Pages 링크](https://kraewon7422.github.io/double-descent-grokking-lab/) *(저장소 Settings → Pages 활성화 후 몇 분 뒤 접속 가능)*
-- **로컬 실행:** `index.html`을 다운로드해 브라우저(Chrome·Edge·Safari 등)에서 열기만 하면 된다. 빌드·서버·인터넷 연결이 필요 없다.
+![Double Descent · Grokking Lab](screenshot.png)
 
 ---
 
-## 다루는 질문
+## 🔬 Try it now
 
-AI기초 교과서의 과적합·일반화 단원은 **편향–분산 트레이드오프**를 가르친다. 모델이 단순하면 훈련 데이터의 규칙조차 못 담아 오차가 크고(과소적합), 복잡하면 잡음까지 외워 새 데이터에서 오차가 커진다(과적합). 그래서 테스트 오차는 복잡도에 대해 **U자**를 그린다.
-
-그런데 이 그림이 옳다면, 파라미터가 데이터보다 압도적으로 많은 거대 모델은 U자의 오른쪽 끝(최악)에 있어야 한다. **현실은 정반대다.** 이 실험실은 그 모순의 해답인 두 현상을 직접 재현한다. 결론부터 말하면 — 교과서가 틀린 게 아니라, **교과서에는 적용 범위가 있었다.**
+- **Live demo (English):** https://kraewon7422.github.io/double-descent-grokking-lab/index.en.html
+- **Live demo (한국어):** https://kraewon7422.github.io/double-descent-grokking-lab/
+- **Run locally:** download `index.en.html` and open it in any browser (Chrome, Edge, Safari…). No build, no server, no internet connection required.
 
 ---
 
-## 세 개의 탭
+## The question it tackles
 
-### 01 · 이론 분석
-편향–분산 U자 곡선에서 출발해, 더블 디센트(모델 크기 축)와 그로킹(학습 시간 축)이 **왜** 일어나는지 도식과 수식으로 설명한다. 두 현상이 "과잉 용량 + 정규화 압력이 단순한 해를 찾아내는 과정"이라는 하나의 이야기의 두 단면임을 연결하고, 이 실험이 딛고 선 **논문 5편**을 정리한다.
+The overfitting & generalization chapter of an intro-ML textbook teaches the **bias–variance trade-off**: a model that is too simple can't even capture the training rules (underfitting), while one that is too complex memorizes the noise and does worse on new data (overfitting). So test error traces a **U-shape** against complexity.
 
-### 02 · 더블 디센트 실험 (모델 크기 축)
-파라미터 수 **P**를 데이터 수 **N** 너머까지 키우며 테스트 오차를 측정한다.
+But if that picture were the whole story, a giant model with far more parameters than data should sit at the far-right, *worst* end of the U. **Reality is the opposite.** This lab reproduces the two phenomena that resolve the paradox — and the punchline is: the textbook isn't wrong, it just had a **domain of validity.**
 
-- **데이터:** `x ∈ ℝ^D`(기본 D=15)에서 `y = w*·x + ε`, 잡음 `ε ~ N(0, σ²)`를 N개 생성
-- **모델:** 랜덤 푸리에 특징 `φⱼ(x) = √(2/P)·cos(vⱼ·x + bⱼ)` 위의 선형회귀
-- **핵심:** `P < N`에서는 **최소제곱해**, `P ≥ N`에서는 **최소 노름 보간해** `β̂ = Φᵀ(ΦΦᵀ)⁻¹y`를 푼다 — 이것이 더블 디센트의 수학적 심장이다.
+---
 
-`P = N`(보간 임계점)에서 테스트 오차가 한 번 폭발한 뒤, 더 키우면 처음 U자의 골짜기보다 **더 낮게** 다시 내려간다. 곡선은 왼쪽에서 오른쪽으로 실시간으로 자라나며, 세 영역(고전 최저 / 봉우리 / 현대 최저)의 수치와 판정이 자동으로 정리된다.
+## Three tabs
 
-**봉우리가 생기는 세 가지 결정 조건** — ① 라벨 잡음 σ>0, ② 고차원 입력, ③ 최소 노름 보간해 — 을 아래 프리셋으로 하나씩 켜고 끄며 확인할 수 있다:
+### 01 · Theory
+Starts from the bias–variance U-curve and explains, with diagrams and equations, **why** double descent (the model-size axis) and grokking (the training-time axis) happen. It connects the two as cross-sections of a single story — *"excess capacity + regularization pressure discovering a simple solution"* — and summarizes the **five papers** this lab stands on.
 
-| 프리셋 | 무엇을 보여주는가 |
+### 02 · Double Descent (the model-size axis)
+Grow the parameter count **P** past the data count **N** and measure test error.
+
+- **Data:** `N` samples of `y = w*·x + ε`, noise `ε ~ N(0, σ²)`, from `x ∈ ℝ^D` (default D=15)
+- **Model:** linear regression on random Fourier features `φⱼ(x) = √(2/P)·cos(vⱼ·x + bⱼ)`
+- **The crux:** for `P < N` we solve the **least-squares** solution; for `P ≥ N` the **minimum-norm interpolant** `β̂ = Φᵀ(ΦΦᵀ)⁻¹y` — the mathematical heart of double descent.
+
+Test error explodes once at `P = N` (the interpolation threshold), then descends again **below** the first U's valley. The curve grows left-to-right in real time, and the three regions (classical min / peak / modern min) plus a verdict are auto-summarized.
+
+The **three deciding conditions for the peak** — ① label noise σ>0, ② high-dimensional input, ③ the minimum-norm interpolant — can each be toggled with a preset:
+
+| Preset | What it shows |
 |---|---|
-| 기본 (σ=0.25) | 봉우리와 재하강이 모두 보이는 더블 디센트 |
-| 잡음 제거 (σ=0) | 폭발할 잡음이 없으면 봉우리 소멸 → 봉우리의 원인이 잡음임 |
-| 잡음 증폭 (σ=0.5) | 봉우리 폭발 |
-| 릿지 정규화 (λ=10⁻³) | 명시적 정규화가 더블 디센트를 지운다 |
-| 저차원 (D=2) | 임계점이 서지 못함 (조건 ②) |
-| 넓은 대역폭 (γ=1.0) | 봉우리는 폭발하나 두 번째 하강이 실패 |
+| Default (σ=0.25) | full double descent — peak and re-descent |
+| No noise (σ=0) | no noise to explode → the peak vanishes |
+| Louder noise (σ=0.5) | the peak explodes |
+| Ridge (λ=10⁻³) | explicit regularization erases double descent |
+| Low dim (D=2) | the threshold can't form (condition ②) |
+| Wide bandwidth (γ=1.0) | the peak explodes but the second descent fails |
 
-### 03 · 그로킹 실험 (학습 시간 축)
-작은 신경망에 **모듈러 덧셈** `a + b (mod p)`를 실제로 학습시킨다.
+### 03 · Grokking (the training-time axis)
+Actually train a small neural net on **modular addition** `a + b (mod p)`.
 
-- **과제:** `p²`개의 (a,b) 쌍 중 일부만 훈련, 나머지로 시험
-- **모델:** 2층 MLP — 원-핫 입력 `2p`차원 → 은닉층(기본 96, 활성화 `φ(h)=h²`, Gromov 2023) → 출력 `p`차원
-- **학습:** 전체 배치 **AdamW** + **가중치 감쇠(weight decay)**, MSE 손실, 20스텝마다 정확도 기록
+- **Task:** of all `p²` pairs (a,b), train on a fraction, test on the rest
+- **Model:** a 2-layer MLP — one-hot input `2p`-dim → hidden layer (default 96, activation `φ(h)=h²`, Gromov 2023) → output `p`-dim
+- **Training:** full-batch **AdamW** + **weight decay**, MSE loss, accuracy logged every 20 steps
 
-훈련 정확도(파랑)는 순식간에 100%에 닿지만 — 답을 전부 **외운** 것이다 — 테스트 정확도(빨강)는 한참 바닥을 기다가, 수천 스텝 뒤 **갑자기 점프**한다. 암기에서 이해로 넘어가는 상전이가 그래프에 그대로 찍힌다. 암기 완료 시점과 그로킹 시점, 플래토 길이가 자동 감지된다.
+Training accuracy (blue) hits 100% almost instantly — it has **memorized** every answer. But test accuracy (red) crawls along the floor for a long time, then **suddenly jumps** thousands of steps later. The phase transition from memorization to understanding is printed right onto the graph; the memorization and grokking moments and the plateau length are auto-detected.
 
-| 프리셋 | 무엇을 보여주는가 |
+| Preset | What it shows |
 |---|---|
-| 기본 (λ=1.0, 50%) | 암기 → 긴 플래토 → 점프 (그로킹 발생) |
-| weight decay 0 (λ=0) | 암기 회로를 허물 압력이 없어 **영원한 암기** |
-| 데이터 30% | 훈련 쌍이 너무 적어 일반화 회로가 서지 못함 |
-| 곱셈 과제 (a×b) | 다른 연산에서도 같은 드라마가 반복됨 |
-| ReLU 활성화 | h²와 비교 — 같은 예산에 점프가 오지 않는 이유 |
+| Default (λ=1.0, 50%) | memorize → long plateau → jump (grokking occurs) |
+| weight decay 0 (λ=0) | no pressure to erode the memorization circuit → **eternal memorization** |
+| Data 30% | too few training pairs → the generalizing circuit can't form |
+| Multiplication (a×b) | the same drama repeats for a different operation |
+| ReLU activation | vs h² — why the jump doesn't come within the same budget |
 
 ---
 
-## 기술적 구현
+## Technical implementation
 
-전부 **의존성 없는 순수 바닐라 JavaScript**로, 외부 라이브러리·서버·데이터가 전혀 없다. 모든 수치는 `mulberry32` 시드 난수로 이 브라우저에서 계산된다.
+Everything is **dependency-free vanilla JavaScript** — no external libraries, no server, no data. All numbers are computed in your browser with a `mulberry32` seeded RNG.
 
-- **선형대수:** 부분 피벗팅 가우스 소거법(`solveSym`)을 직접 구현해 정규방정식/커널 방정식을 푼다.
-- **더블 디센트:** `P < N`은 그람 행렬 `ΦᵀΦ` 기반 최소제곱, `P ≥ N`은 커널 행렬 `ΦΦᵀ` 기반 최소 노름 보간해. 각 P마다 여러 번 시행해 중앙값을 취한다.
-- **그로킹:** 순전파·역전파·AdamW를 손으로 구현한 2층 MLP. `requestAnimationFrame` 루프로 실시간 학습을 애니메이션한다.
-- **차트:** `<canvas>` 위에 로그/선형 축, 눈금, 보조선, 계열 토글을 직접 그리는 자체 `LinePlot`.
-- **UI:** Fable로 제작. Noto Serif KR / IBM Plex Sans·Mono 폰트, 반응형 레이아웃, `prefers-reduced-motion` 지원.
-
----
-
-## 이 실험이 딛고 선 논문
-
-- **Belkin, Hsu, Ma & Mandal (2019)** — *PNAS 116(32).* 'double descent' 용어의 원조. 02번 탭은 이 실험의 축소판.
-- **Mei & Montanari (2022)** — *Comm. Pure Appl. Math. 75(4).* 봉우리가 정확히 P/N=1에서 생김을 증명(금색 점선 위치).
-- **Nakkiran et al. (2019)** — *ICLR 2020.* 실제 딥러닝에서 모델 크기·학습 시간 두 축 모두에서 더블 디센트를 보임. 02·03번을 잇는 다리.
-- **Power et al. (2022)** — *arXiv:2201.02177 (OpenAI).* 그로킹 현상의 발견 논문.
-- **Gromov (2023)** — *arXiv:2301.02679.* 2층 MLP(제곱 활성화)만으로 모듈러 덧셈 그로킹을 재현·해석. 03번 탭 모델 구조의 원본.
+- **Linear algebra:** a hand-written Gaussian elimination with partial pivoting (`solveSym`) solves the normal / kernel equations.
+- **Double descent:** `P < N` uses least-squares on the Gram matrix `ΦᵀΦ`; `P ≥ N` uses the minimum-norm interpolant via the kernel matrix `ΦΦᵀ`. Each P is run several times and the median is taken.
+- **Grokking:** a 2-layer MLP with hand-coded forward pass, back-propagation, and AdamW. A `requestAnimationFrame` loop animates training in real time.
+- **Charts:** a custom `LinePlot` draws log/linear axes, ticks, guide lines, and series toggles directly onto a `<canvas>`.
+- **UI:** built with Fable. Noto Serif KR / IBM Plex Sans·Mono fonts, responsive layout, `prefers-reduced-motion` support.
 
 ---
 
-## 저장소 구성
+## The papers this experiment stands on
+
+- **Belkin, Hsu, Ma & Mandal (2019)** — *PNAS 116(32).* Coined "double descent." Tab 02 is a miniature of this experiment.
+- **Mei & Montanari (2022)** — *Comm. Pure Appl. Math. 75(4).* Proves the peak sits exactly at P/N=1 (the gold dashed line).
+- **Nakkiran et al. (2019)** — *ICLR 2020.* Double descent along both model-size and training-time axes in real deep nets. The bridge between Tabs 02 and 03.
+- **Power et al. (2022)** — *arXiv:2201.02177 (OpenAI).* The paper that discovered grokking.
+- **Gromov (2023)** — *arXiv:2301.02679.* Reproduces modular-addition grokking with just a 2-layer MLP (squared activation). The basis for Tab 03's model.
+
+---
+
+## Repository layout
 
 ```
-index.html                     # 실행 파일 (GitHub Pages 진입점)
-더블디센트_그로킹_실험실_v2.html   # 원본 파일명 (index.html과 동일 내용)
-README.md
+index.en.html                  # English version
+index.html                     # Korean version (GitHub Pages entry point)
+더블디센트_그로킹_실험실_v2.html   # original filename (identical to index.html)
+README.md                      # this file (English)
+README.ko.md                   # Korean README
+screenshot.png                 # preview image
 ```
 
 ---
 
-*AI기초 심화 탐구용으로 제작. 외부 데이터·서버 없이 브라우저 안에서 모든 것이 계산됩니다.*
+*Built for an AI-fundamentals deep-dive. Everything is computed inside your browser — no external data, no server.*

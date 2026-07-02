@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Where the Textbook Stops — A Double Descent · Grokking Reproduction Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;900&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FAFBF6; --grid:#E5EADC; --card:#FFFFFE; --line:#D8DECF;
+  --ink:#1E2922; --muted:#66735F; --faint:#8E9A88;
+  --train:#3E6B8C; --test:#C2452D; --ghost:#9AA89B; --mark:#C99227;
+  --ok:#3E7D4F; --chipbg:#F1F4EA;
+  --serif:'Noto Serif KR',"Apple SD Gothic Neo",serif;
+  --sans:'IBM Plex Sans KR',"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans); color:var(--ink); background:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:28px 28px; line-height:1.7; font-size:15.5px;
+}
+.wrap{max-width:1020px;margin:0 auto;padding:40px 22px 80px}
+/* ---------- header ---------- */
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+h1{font-family:var(--serif);font-weight:900;font-size:clamp(26px,4.6vw,42px);line-height:1.32;margin:10px 0 14px}
+h1 .underline{box-shadow:inset 0 -0.42em 0 #F3DBC9}
+.thesis{max-width:760px;color:#3C4A3F;font-size:15.5px}
+.thesis b{color:var(--ink)}
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:4px;margin:34px 0 26px;border-bottom:2px solid var(--line);flex-wrap:wrap}
+.tab{appearance:none;border:none;background:none;cursor:pointer;font-family:var(--sans);font-size:15px;font-weight:500;
+  color:var(--muted);padding:10px 16px 12px;margin-bottom:-2px;border-bottom:3px solid transparent;display:flex;gap:8px;align-items:baseline}
+.tab .no{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink);font-weight:700;border-bottom-color:var(--test)}
+.tab:focus-visible{outline:2px solid var(--train);outline-offset:2px;border-radius:4px}
+.panel{display:none}
+.panel.on{display:block;animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.panel.on{animation:none}}
+/* ---------- cards & layout ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:24px 26px;margin-bottom:18px;box-shadow:0 1px 0 rgba(30,41,34,.04)}
+.card h2{font-family:var(--serif);font-weight:900;font-size:21px;margin-bottom:12px;line-height:1.4}
+.card h3{font-size:15.5px;font-weight:700;margin:18px 0 6px}
+.card p{margin:8px 0;color:#33402F}
+.card p.note{font-size:13.5px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+.kicker{font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;color:var(--test);font-weight:600}
+.q{font-family:var(--serif);font-weight:700;font-size:17px;background:#FBF4EC;border-left:4px solid var(--test);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0}
+.math{font-family:var(--mono);font-size:13.5px;background:var(--chipbg);border:1px solid var(--line);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.mathblock{font-family:var(--mono);font-size:13.5px;background:var(--chipbg);border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:10px 0;overflow-x:auto;line-height:1.9}
+sup,sub{font-size:.72em}
+.cond{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+@media (max-width:760px){.cond{grid-template-columns:1fr}}
+.cond .c{background:var(--chipbg);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.cond .c b{display:block;margin-bottom:4px;font-size:14.5px}
+.cond .c span{font-size:13px;color:var(--muted);line-height:1.6;display:block}
+/* paper refs */
+.refs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.refs{grid-template-columns:1fr}}
+.ref{border:1px solid var(--line);border-radius:8px;padding:13px 16px;background:#FDFDFA}
+.ref .who{font-weight:700;font-size:14px}
+.ref .where{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:2px 0 6px}
+.ref .what{font-size:13px;color:#46523F;line-height:1.65}
+/* ---------- controls ---------- */
+.labrow{display:grid;grid-template-columns:280px 1fr;gap:18px;align-items:start}
+@media (max-width:860px){.labrow{grid-template-columns:1fr}}
+.controls{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;position:sticky;top:14px}
+@media (max-width:860px){.controls{position:static}}
+.controls h3{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--muted);margin-bottom:14px;font-weight:600}
+.ctl{margin-bottom:14px}
+.ctl label{display:flex;justify-content:space-between;font-size:13.5px;font-weight:500;margin-bottom:4px}
+.ctl label .val{font-family:var(--mono);font-size:12.5px;color:var(--train);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--train);height:22px}
+select,input[type=number]{font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);width:100%}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+button.act{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;border-radius:8px;
+  padding:9px 16px;border:1px solid var(--ink);background:var(--ink);color:#FAFBF6;flex:1;min-width:96px}
+button.act:hover{background:#33433A}
+button.act:disabled{opacity:.45;cursor:default}
+button.ghostbtn{background:none;color:var(--ink)}
+button.ghostbtn:hover{background:var(--chipbg)}
+button.act:focus-visible{outline:2px solid var(--train);outline-offset:2px}
+details.adv{margin:4px 0 12px;border:1px dashed var(--line);border-radius:8px;padding:0 12px}
+details.adv summary{cursor:pointer;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--muted);padding:9px 0;list-style:none;user-select:none}
+details.adv summary::before{content:'▸ ';color:var(--train)}
+details.adv[open] summary::before{content:'▾ '}
+details.adv[open]{padding-bottom:6px;background:#FDFDF9}
+.presets{margin-top:16px;border-top:1px dashed var(--line);padding-top:12px}
+.presets .pt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+.preset{display:block;width:100%;text-align:left;appearance:none;cursor:pointer;border:1px solid var(--line);background:#FDFDFA;
+  border-radius:8px;padding:8px 12px;margin-bottom:7px;font-family:var(--sans);font-size:13px;color:var(--ink)}
+.preset b{display:block;font-size:13.5px}
+.preset span{color:var(--muted);font-size:12px}
+.preset:hover{border-color:var(--train);background:#F4F8FA}
+.progress{height:6px;background:var(--chipbg);border-radius:4px;overflow:hidden;margin-top:12px}
+.progress i{display:block;height:100%;width:0%;background:var(--train);transition:width .15s}
+/* ---------- chart area ---------- */
+.chartcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 18px 14px}
+.charthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.charthead .t{font-weight:700;font-size:15px}
+.charthead .s{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+canvas{width:100%;display:block}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
+.chip{appearance:none;cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:500;border-radius:99px;
+  padding:5px 13px 5px 9px;border:1px solid var(--line);background:var(--chipbg);color:var(--muted);display:flex;align-items:center;gap:7px}
+.chip .dot{width:9px;height:9px;border-radius:99px;background:currentColor;flex:none}
+.chip.on{color:var(--ink);background:#fff;border-color:#B9C2AE}
+.chip.off{opacity:.5;text-decoration:line-through}
+.chip:focus-visible{outline:2px solid var(--train);outline-offset:1px}
+.readout{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+@media (max-width:760px){.readout{grid-template-columns:repeat(2,1fr)}}
+.ro{background:var(--chipbg);border:1px solid var(--line);border-radius:8px;padding:10px 13px}
+.ro .k{font-size:11.5px;color:var(--muted);letter-spacing:.02em}
+.ro .v{font-family:var(--mono);font-size:17px;font-weight:600;margin-top:2px}
+.ro .v small{font-size:11px;color:var(--muted);font-weight:400}
+.statusline{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:12px;font-weight:600;padding:4px 12px;border-radius:99px;border:1px solid var(--line);background:var(--chipbg);color:var(--muted)}
+.badge.memo{background:#EDF2F7;color:var(--train);border-color:#C4D4E0}
+.badge.plateau{background:#FBF3E3;color:#9A6E12;border-color:#E8D6A8}
+.badge.grok{background:#E8F3EA;color:var(--ok);border-color:#BBD8C2}
+.findings{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;font-size:13.5px;color:#46523F}
+.findings b{color:var(--ink)}
+footer{margin-top:46px;border-top:2px solid var(--line);padding-top:18px;font-size:12.5px;color:var(--muted);font-family:var(--mono);line-height:1.9}
+.legendnote{font-size:12px;color:var(--faint);margin-top:4px}
+.svgfig{width:100%;height:auto;display:block;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">AI Fundamentals Deep-Dive · Hands-on Reproduction Lab Notebook</div>
+  <h1>The textbook says: “complexity means overfitting.”<br><span class="underline">So why does GPT work so well?</span></h1>
+  <p class="thesis">The overfitting &amp; generalization chapter of an intro-ML textbook teaches that as a model grows more complex, its test error rises. This page reproduces two phenomena that break that claim — <b>double descent</b> (the model-size axis) and <b>grokking</b> (the training-time axis) — with <b>real numerical simulation inside your browser</b>, no external data. Every point on every chart is computed right now, on this device.</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab on" role="tab" data-tab="t1"><span class="no">01</span>Theory</button>
+  <button class="tab" role="tab" data-tab="t2"><span class="no">02</span>Double Descent</button>
+  <button class="tab" role="tab" data-tab="t3"><span class="no">03</span>Grokking</button>
+</nav>
+
+<!-- ================= TAB 1 : THEORY ================= -->
+<section class="panel on" id="t1">
+
+  <div class="card">
+    <div class="kicker">Starting point — the textbook's claim</div>
+    <h2>The bias–variance trade-off and the ‘U-shaped curve’</h2>
+    <p>The textbook's story goes like this. A model that is too simple can't even capture the rules in the training data, so its error is large (<b>underfitting, high bias</b>); a model that is too complex memorizes even the noise and does worse on new data (<b>overfitting, high variance</b>). So test error traces a U against complexity, and we're told to pick the ‘right complexity’ at the bottom of that valley.</p>
+    <svg class="svgfig" viewBox="0 0 640 190" role="img" aria-label="classical U-shaped curve schematic">
+      <line x1="50" y1="160" x2="610" y2="160" stroke="#D8DECF" stroke-width="1.5"/>
+      <line x1="50" y1="20" x2="50" y2="160" stroke="#D8DECF" stroke-width="1.5"/>
+      <path d="M 70 40 C 160 150, 300 150, 420 70 C 480 30, 540 25, 590 22" fill="none" stroke="#C2452D" stroke-width="2.5"/>
+      <path d="M 70 60 C 200 140, 380 152, 590 156" fill="none" stroke="#3E6B8C" stroke-width="2.5"/>
+      <text x="330" y="182" font-size="12" fill="#66735F" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">Model complexity →</text>
+      <text x="46" y="16" font-size="12" fill="#66735F" text-anchor="start" font-family="IBM Plex Sans KR,sans-serif">Error</text>
+      <text x="560" y="44" font-size="12.5" fill="#C2452D" font-weight="700" text-anchor="end" font-family="IBM Plex Sans KR,sans-serif">Test error</text>
+      <text x="560" y="143" font-size="12.5" fill="#3E6B8C" font-weight="700" text-anchor="end" font-family="IBM Plex Sans KR,sans-serif">Training error</text>
+      <text x="255" y="125" font-size="11.5" fill="#8E9A88" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">“optimal complexity”</text>
+      <line x1="255" y1="130" x2="255" y2="160" stroke="#8E9A88" stroke-width="1" stroke-dasharray="3 3"/>
+    </svg>
+    <div class="q">The paradox — if this picture is right, a GPT-scale giant with far more parameters than data should sit at the far right of the U, its worst region. So why, in reality, do bigger models work better?</div>
+    <p>Modern machine learning's answer is the two phenomena below. The punchline first — <b>the textbook isn't wrong; it just had a domain of validity.</b></p>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <div class="kicker">Phenomenon ① — the model-size axis</div>
+      <h2>Double Descent</h2>
+      <svg class="svgfig" viewBox="0 0 320 130" role="img" aria-label="double descent schematic">
+        <line x1="20" y1="110" x2="305" y2="110" stroke="#D8DECF" stroke-width="1.2"/>
+        <path d="M 30 35 C 60 90, 90 92, 120 70 C 150 45, 165 20, 175 12 L 182 12 C 195 35, 230 80, 300 95" fill="none" stroke="#C2452D" stroke-width="2.4"/>
+        <line x1="178" y1="8" x2="178" y2="110" stroke="#C99227" stroke-width="1.3" stroke-dasharray="4 3"/>
+        <text x="178" y="124" font-size="10.5" fill="#C99227" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">interpolation threshold P=N</text>
+        <text x="95" y="120" font-size="10.5" fill="#8E9A88" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">classical regime</text>
+        <text x="255" y="120" font-size="10.5" fill="#8E9A88" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">modern (over-param.) regime</text>
+      </svg>
+      <p>Keep growing the parameter count <span class="math">P</span> past the data count <span class="math">N</span> and test error doesn't end in a U. <b>It explodes once near <span class="math">P=N</span>, then falls again as you grow further</b> — and lower than the first U's valley. The U appears twice, hence ‘double descent.’</p>
+      <h3>Why it explodes at P=N</h3>
+      <p>At the moment the model can <b>just barely pass through every training point</b> (the interpolation threshold), there is exactly one solution, so it's forced into an extremely contorted function that threads even the single noisy point. An acrobatic feat with zero degrees of freedom.</p>
+      <h3>Why it descends again beyond that</h3>
+      <p>When <span class="math">P&gt;N</span>, <b>infinitely many solutions pass through all training points</b>. The one the learning algorithm picks is the shortest, smoothest — the minimum-norm interpolant. More parameters means more room to ‘pass through smoothly,’ so generalization actually improves. This is implicit regularization.</p>
+      <div class="mathblock">P &lt; N&nbsp;:&nbsp; β̂ = (Φ<sup>T</sup>Φ)<sup>−1</sup>Φ<sup>T</sup>y &nbsp;(least-squares solution)<br>P ≥ N&nbsp;:&nbsp; β̂ = Φ<sup>T</sup>(ΦΦ<sup>T</sup>)<sup>−1</sup>y &nbsp;(<b>minimum-norm interpolant</b>)</div>
+      <p class="note">The second line is the mathematical heart of double descent. The Tab 02 simulation implements exactly these two equations.</p>
+    </div>
+
+    <div class="card">
+      <div class="kicker">Phenomenon ② — the training-time axis</div>
+      <h2>Grokking</h2>
+      <svg class="svgfig" viewBox="0 0 320 130" role="img" aria-label="grokking schematic">
+        <line x1="20" y1="110" x2="305" y2="110" stroke="#D8DECF" stroke-width="1.2"/>
+        <path d="M 30 105 C 45 100, 52 30, 70 22 L 300 20" fill="none" stroke="#3E6B8C" stroke-width="2.4"/>
+        <path d="M 30 106 L 195 103 C 215 100, 222 30, 240 22 L 300 21" fill="none" stroke="#C2452D" stroke-width="2.4"/>
+        <text x="120" y="95" font-size="10.5" fill="#8E9A88" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">memorization persists for a long time</text>
+        <line x1="228" y1="12" x2="228" y2="110" stroke="#C99227" stroke-width="1.3" stroke-dasharray="4 3"/>
+        <text x="228" y="124" font-size="10.5" fill="#C99227" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">grokking</text>
+        <text x="62" y="14" font-size="10.5" fill="#3E6B8C" font-weight="700" font-family="IBM Plex Sans KR,sans-serif">train accuracy</text>
+        <text x="298" y="40" font-size="10.5" fill="#C2452D" font-weight="700" text-anchor="end" font-family="IBM Plex Sans KR,sans-serif">test accuracy</text>
+      </svg>
+      <p>Train a small neural net on a simple operation like <span class="math">a + b mod p</span>, and <b>training accuracy hits 100% almost instantly</b> — it has memorized every answer. But test accuracy lingers at chance level for a long time, then <b>suddenly jumps to 100%</b> thousands to tens of thousands of steps later. The moment memorization turns into understanding is printed right onto the graph.</p>
+      <h3>Why the insight is discontinuous</h3>
+      <p>Two kinds of solution compete inside the network. The <b>memorization circuit</b> forms quickly but has large, complex weights. The <b>generalizing circuit</b> (for modular addition, a Fourier / periodic structure) grows slowly but has small, simple weights. Weight decay taxes the size of every weight at every step, so over time the expensive memorization circuit erodes and the cheap generalizing circuit survives. The visible accuracy jumps like a staircase at the moment the two circuits trade dominance.</p>
+      <h3>What if weight decay were 0?</h3>
+      <p>With no pressure to tear down the memorization circuit, <b>grokking never comes</b>. Tab 03 includes this control experiment as a one-click preset — see for yourself.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="kicker">Connecting the two</div>
+    <h2>Two cross-sections of the same story</h2>
+    <p>Nakkiran et al. (2019) showed that double descent appears not only along the model-size axis but also along the <b>training-time (epoch) axis</b>. Instead of growing the model, training it longer also produces the same “gets worse, then better again” curve. Grokking can be seen as an extreme form of this epoch-axis phenomenon — both experiments ultimately slice the single story of <b>“excess capacity + regularization pressure discovering a simple solution”</b> along two cross-sections: model size and training time.</p>
+    <h3>The textbook wasn't wrong — it had a domain of validity</h3>
+    <p>Look at the Tab 02 results: <b>inside the classical regime where <span class="math">P&lt;N</span>, the bias–variance trade-off holds exactly.</b> Raise complexity and training error falls while test error eventually worsens — just as the textbook says. The textbook's U isn't a ‘wrong picture’; it was ‘the left half of the whole picture.’ Just as Newtonian mechanics yields to relativity near light speed, classical statistics' intuition was a valid approximation within the boundary of the interpolation threshold.</p>
+    <p>By analogy with human study — cramming the night before an exam is a 100%-training-accuracy memorization circuit. What the grokking experiment shows is that even in that memorized state, if the ‘pressure to find a simpler explanation’ keeps operating, at some moment a phase transition into genuine understanding occurs. The intuition that insight arrives discontinuously rather than gradually is reproduced numerically in the smallest possible neural net.</p>
+  </div>
+
+  <div class="card">
+    <div class="kicker">References</div>
+    <h2>The five papers this experiment stands on</h2>
+    <div class="refs">
+      <div class="ref"><div class="who">Belkin, Hsu, Ma &amp; Mandal (2019)</div><div class="where">PNAS 116(32)</div><div class="what">The paper that coined the term ‘double descent.’ First cleanly showed the peak using random Fourier features (RFF). Tab 02 is a miniature of this experiment.</div></div>
+      <div class="ref"><div class="who">Mei &amp; Montanari (2022)</div><div class="where">Comm. Pure Appl. Math. 75(4)</div><div class="what">A precise mathematical analysis of double descent in RFF regression. Proves the peak occurs exactly at P/N=1 — the gold dashed line in Tab 02 is this paper's prediction.</div></div>
+      <div class="ref"><div class="who">Nakkiran et al. (2019)</div><div class="where">ICLR 2020</div><div class="what">Showed that in real deep learning (ResNet) double descent appears along the training-time axis as well as model size. The bridge between Tabs 02 and 03.</div></div>
+      <div class="ref"><div class="who">Power et al. (2022)</div><div class="where">arXiv:2201.02177 (OpenAI)</div><div class="what">The paper that discovered grokking. Reported that a small transformer memorizes modular arithmetic, then suddenly generalizes long afterward.</div></div>
+      <div class="ref"><div class="who">Gromov (2023)</div><div class="where">arXiv:2301.02679</div><div class="what">Reproduced modular-addition grokking with just a 2-layer MLP (squared activation), no transformer, and gave an analytic solution. Tab 03's model structure is a miniature of this setup.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TAB 2 : DOUBLE DESCENT ================= -->
+<section class="panel" id="t2">
+  <div class="card">
+    <div class="kicker">Experiment ① — the model-size axis</div>
+    <h2>We grow the parameter count P and measure test error</h2>
+    <p>Data: generate <span class="math">N</span> samples of <span class="math">y = w*·x + ε</span> (noise ε ~ N(0, σ²)) from <span class="math">x ∈ ℝ<sup>D</sup></span> (default D=15). Model: linear regression on random Fourier features <span class="math">φ<sub>j</sub>(x) = √(2/P)·cos(v<sub>j</sub>·x + b<sub>j</sub>)</span>. For <span class="math">P&lt;N</span> we solve the least-squares solution; for <span class="math">P≥N</span> the <b>minimum-norm interpolant</b>. Each P is run several times and we plot the median.</p>
+    <p class="note">▶ Press Run and P is computed left to right, from P=2 to P=8N, the curve growing as it goes. Drop noise σ to 0 and the peak vanishes; turn on ridge λ in advanced settings and the peak is tamed; drop dimension D to 2 and the threshold itself disappears — all confirmable with one-click presets.</p>
+  </div>
+
+  <div class="labrow">
+    <div class="controls">
+      <h3>SIMULATION CONTROLS</h3>
+      <div class="ctl"><label>Training data count N <span class="val" id="ddNv">150</span></label><input type="range" id="ddN" min="60" max="200" step="10" value="150"></div>
+      <div class="ctl"><label>Label noise σ <span class="val" id="ddNoiseV">0.25</span></label><input type="range" id="ddNoise" min="0" max="0.6" step="0.05" value="0.25"></div>
+      <div class="ctl"><label>Trials (median) <span class="val" id="ddTrialsV">8</span></label><input type="range" id="ddTrials" min="2" max="20" step="1" value="8"></div>
+      <details class="adv">
+        <summary>Advanced settings</summary>
+        <div class="ctl"><label>Input dimension D <span class="val" id="ddDv">15</span></label><input type="range" id="ddD" min="2" max="30" step="1" value="15"></div>
+        <div class="ctl"><label>Feature bandwidth γ <span class="val" id="ddGv">0.40</span></label><input type="range" id="ddG" min="0.2" max="1.2" step="0.05" value="0.4"></div>
+        <div class="ctl"><label>Ridge regularization λ<select id="ddRidge"><option value="0" selected>0 (none)</option><option value="0.0001">10⁻⁴</option><option value="0.001">10⁻³</option><option value="0.01">10⁻²</option><option value="0.1">10⁻¹</option></select></label></div>
+        <div class="ctl"><label>Random feature type<select id="ddFeat"><option value="cos" selected>cos — Fourier (Belkin 2019)</option><option value="relu">ReLU — neural-net style</option></select></label></div>
+        <div class="ctl"><label>P sweep range<select id="ddRange"><option value="4">2 ~ 4N</option><option value="8" selected>2 ~ 8N</option><option value="16">2 ~ 16N (slow)</option></select></label></div>
+      </details>
+      <div class="btns">
+        <button class="act" id="ddRun">▶ Run</button>
+        <button class="act ghostbtn" id="ddStop" disabled>Stop</button>
+      </div>
+      <div class="progress"><i id="ddProg"></i></div>
+      <div class="presets">
+        <div class="pt">ABLATION PRESETS</div>
+        <button class="preset" data-dd="base"><b>Default — double descent</b><span>σ=0.25 · peak and re-descent both visible</span></button>
+        <button class="preset" data-dd="nonoise"><b>No noise — peak vanishes</b><span>σ=0 · with no noise to explode, the threshold is quiet</span></button>
+        <button class="preset" data-dd="loudnoise"><b>Louder noise — peak explodes</b><span>σ=0.5 · confirms noise is what makes the peak</span></button>
+        <button class="preset" data-dd="ridge"><b>Ridge regularization — taming the peak</b><span>λ=10⁻³ · explicit regularization erases double descent</span></button>
+        <button class="preset" data-dd="lowdim"><b>Low dimension D=2 — threshold gone</b><span>low dimension can't raise the peak (condition ②)</span></button>
+        <button class="preset" data-dd="widegamma"><b>γ=1.0 — re-descent fails</b><span>the peak explodes but the second descent never comes</span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="chartcard">
+        <div class="charthead"><span class="t">Test MSE vs parameter count P</span><span class="s" id="ddSub">Idle — ▶ Run</span></div>
+        <canvas id="ddChart" height="380" aria-label="double descent curve"></canvas>
+        <div class="chips" id="ddChips"></div>
+        <div class="legendnote">Gold dashed line = interpolation threshold P=N (predicted location, Mei &amp; Montanari 2022). Gray-green dashed line = the schematic U the textbook predicts.</div>
+        <div class="readout">
+          <div class="ro"><div class="k">Classical-regime min (P&lt;N)</div><div class="v" id="ddUnder">—</div></div>
+          <div class="ro"><div class="k">Peak (P≈N)</div><div class="v" id="ddPeak">—</div></div>
+          <div class="ro"><div class="k">Modern-regime min (P&gt;N)</div><div class="v" id="ddOver">—</div></div>
+          <div class="ro"><div class="k">Verdict</div><div class="v" id="ddVerdict" style="font-size:13.5px">—</div></div>
+        </div>
+        <div class="findings" id="ddFind">When the curve is complete, the numeric comparison of the three regions and the verdict are summarized here.</div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h3 style="margin-top:0">Three deciding conditions for the peak to form</h3>
+        <div class="cond">
+          <div class="c"><b>① Label noise σ &gt; 0</b><span>What explodes at the threshold is the noise. With no noise there is no ‘wrong point’ to thread, so no peak forms. (confirm with the σ=0 preset)</span></div>
+          <div class="c"><b>② High-dimensional input (D=15)</b><span>In 1-D polynomial regression the Vandermonde matrix's condition number blows up and the re-descent drowns in floating-point error. Higher dimension makes the threshold stand razor-sharp.</span></div>
+          <div class="c"><b>③ Minimum-norm interpolant</b><span>For P≥N you must pick the smoothest of the infinitely many interpolants, β̂=Φ<sup>T</sup>(ΦΦ<sup>T</sup>)⁻¹y, for the re-descent to appear. The mathematical heart of double descent.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TAB 3 : GROKKING ================= -->
+<section class="panel" id="t3">
+  <div class="card">
+    <div class="kicker">Experiment ② — the training-time axis</div>
+    <h2>We teach modular addition a + b (mod p) to a neural net</h2>
+    <p>Task: of all <span class="math">p²</span> pairs (a,b), give only some for training and test on the rest. Model: a 2-layer MLP — one-hot input <span class="math">2p</span>-dim → hidden layer (default 96, default activation <span class="math">φ(h)=h²</span>, Gromov 2023) → output <span class="math">p</span>-dim. Training: full-batch AdamW (default lr 0.01) + <b>weight decay</b>, MSE loss. Train/test accuracy recorded every 20 steps.</p>
+    <p class="note">▶ Press Start Training and it runs in real time. Watch the long plateau where test accuracy (red) crawls along the floor even after training accuracy (blue) reaches 100% — and then the moment of the jump.</p>
+  </div>
+
+  <div class="labrow">
+    <div class="controls">
+      <h3>TRAINING CONTROLS</h3>
+      <div class="ctl"><label>Weight decay λ <span class="val" id="gkWdV">1.0</span></label><input type="range" id="gkWd" min="0" max="2" step="0.1" value="1"></div>
+      <div class="ctl"><label>Training data fraction <span class="val" id="gkFracV">50%</span></label><input type="range" id="gkFrac" min="0.2" max="0.8" step="0.05" value="0.5"></div>
+      <div class="ctl"><label>Modulus p<select id="gkP"><option value="11">p = 11 (121 pairs)</option><option value="17" selected>p = 17 (289 pairs)</option><option value="23">p = 23 (529 pairs)</option></select></label></div>
+      <details class="adv">
+        <summary>Advanced settings</summary>
+        <div class="ctl"><label>Task (operation)<select id="gkOp"><option value="add" selected>a + b (mod p)</option><option value="sub">a − b (mod p)</option><option value="mul">a × b (mod p)</option></select></label></div>
+        <div class="ctl"><label>Activation function<select id="gkAct"><option value="quad" selected>φ(h) = h² (Gromov 2023)</option><option value="relu">ReLU — for comparison</option></select></label></div>
+        <div class="ctl"><label>Hidden width<select id="gkWidth"><option value="32">32 (narrow)</option><option value="48">48</option><option value="96" selected>96 (default)</option><option value="192">192 (wide)</option></select></label></div>
+        <div class="ctl"><label>Learning rate lr<select id="gkLr"><option value="0.003">0.003 (slow)</option><option value="0.01" selected>0.01 (default)</option><option value="0.03">0.03 (fast)</option></select></label></div>
+      </details>
+      <div class="ctl"><label>Random seed<input type="number" id="gkSeed" value="0" min="0" max="999"></label></div>
+      <div class="ctl"><label>Playback speed<select id="gkSpeed"><option value="2">1× (slow observe)</option><option value="8" selected>4× (default)</option><option value="32">16× (fast)</option></select></label></div>
+      <div class="btns">
+        <button class="act" id="gkRun">▶ Start Training</button>
+        <button class="act ghostbtn" id="gkPause" disabled>Pause</button>
+        <button class="act ghostbtn" id="gkReset">Reset</button>
+      </div>
+      <div class="presets">
+        <div class="pt">ABLATION PRESETS</div>
+        <button class="preset" data-gk="base"><b>Default — grokking occurs</b><span>λ=1.0, 50% · memorize → long plateau → jump</span></button>
+        <button class="preset" data-gk="nowd"><b>weight decay 0 — eternal memorization</b><span>λ=0 · no pressure to tear down the memorization circuit</span></button>
+        <button class="preset" data-gk="lowdata"><b>Data 30% — grokking fails</b><span>too few training pairs and the generalizing circuit can't form</span></button>
+        <button class="preset" data-gk="mul"><b>Multiplication task — other ops grok too</b><span>a×b mod p · the same drama on a different stage</span></button>
+        <button class="preset" data-gk="relu"><b>ReLU activation — vs h²</b><span>the jump doesn't come within the same step budget (why?)</span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="chartcard">
+        <div class="charthead"><span class="t" id="gkTitle">Accuracy vs training step (log axis)</span><span class="s" id="gkSub">Idle — ▶ Start Training</span></div>
+        <canvas id="gkChart" height="380" aria-label="grokking training curve"></canvas>
+        <div class="chips" id="gkChips"></div>
+        <div class="legendnote">Gray-green dashed line = what the textbook predicts (test follows train immediately). Gold dashed line = auto-detected memorization-complete / grokking moments.</div>
+        <div class="statusline">
+          <span class="badge" id="gkBadge">Idle</span>
+          <span class="s" style="font-family:var(--mono);font-size:12.5px;color:var(--muted)" id="gkStat">step 0 · train — · test —</span>
+        </div>
+        <div class="readout">
+          <div class="ro"><div class="k">Memorized (train 100%)</div><div class="v" id="gkMemo">—</div></div>
+          <div class="ro"><div class="k">Grokking (test ≥ 95%)</div><div class="v" id="gkGrok">—</div></div>
+          <div class="ro"><div class="k">Plateau length</div><div class="v" id="gkGap">—</div></div>
+          <div class="ro"><div class="k">Data</div><div class="v" id="gkData">—</div></div>
+        </div>
+        <div class="findings" id="gkFind">The memorization moment and grokking moment are auto-detected and logged here. Compare with the λ=0 preset.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Reproduction spec (v2) — ① Double descent: random-feature regression (default D=15, γ=0.4, cos/ReLU selectable, ridge λ selectable, 300 test points), P&lt;N least-squares / P≥N minimum-norm interpolation (a miniature of Belkin et al. 2019) ·
+  ② Grokking: 2-layer MLP (h²/ReLU activation, width 32–192, operation +/−/× mod p selectable), full-batch AdamW lr 0.003–0.03, MSE (a miniature of Gromov 2023) ·
+  All numbers computed in this browser with mulberry32 seeded RNG — no external data or server. Built for an AI-fundamentals deep-dive.
+</footer>
+</div>
+
+<script>
+'use strict';
+/* ============ RNG ============ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function gaussOf(rng){let u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+/* ============ Tabs ============ */
+document.querySelectorAll('.tab').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById(b.dataset.tab).classList.add('on');
+    if(b.dataset.tab==='t2') ddPlot.draw();
+    if(b.dataset.tab==='t3') gkPlot.draw();
+  });
+});
+
+/* ============ Canvas line plot ============ */
+function LinePlot(canvas,opts){
+  const ctx=canvas.getContext('2d');
+  const o=Object.assign({xlog:true,ylog:false,xlabel:'',ylabel:'',padL:62,padR:16,padT:18,padB:42,yClampMin:1e-6},opts||{});
+  let series=[],vlines=[],annos=[];
+  function sizeUp(){
+    const r=canvas.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    const w=Math.max(280,r.width), h=Math.min(440,Math.max(280,r.width*0.52));
+    canvas.style.height=h+'px';
+    canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {w,h};
+  }
+  function tx(v,xmin,xmax,W){ if(o.xlog){return o.padL+(Math.log10(v)-Math.log10(xmin))/(Math.log10(xmax)-Math.log10(xmin))*(W-o.padL-o.padR);} return o.padL+(v-xmin)/(xmax-xmin)*(W-o.padL-o.padR); }
+  function ty(v,ymin,ymax,H){ if(o.ylog){v=Math.max(v,o.yClampMin);return H-o.padB-(Math.log10(v)-Math.log10(ymin))/(Math.log10(ymax)-Math.log10(ymin))*(H-o.padT-o.padB);} return H-o.padB-(v-ymin)/(ymax-ymin)*(H-o.padT-o.padB); }
+  function niceLinTicks(mn,mx){
+    const span=mx-mn||1, step0=Math.pow(10,Math.floor(Math.log10(span/5)));
+    let step=step0; for(const m of [1,2,2.5,5,10]){ if(span/(step0*m)<=6){step=step0*m;break;} }
+    const t=[]; for(let v=Math.ceil(mn/step)*step; v<=mx+1e-12; v+=step) t.push(+v.toFixed(10));
+    return t;
+  }
+  function logTicks(mn,mx){
+    const t=[]; const lo=Math.floor(Math.log10(mn)), hi=Math.ceil(Math.log10(mx));
+    for(let e=lo;e<=hi;e++){ for(const m of [1,2,5]){ const v=m*Math.pow(10,e); if(v>=mn*0.999&&v<=mx*1.001) t.push(v);} }
+    return t;
+  }
+  function fmt(v){ if(v===0)return '0'; const a=Math.abs(v);
+    if(a>=10000||a<0.001) return v.toExponential(0).replace('e+','e');
+    if(a>=100) return String(Math.round(v));
+    if(a>=1) return (Math.round(v*100)/100).toString();
+    return (Math.round(v*1000)/1000).toString(); }
+  function draw(){
+    const {w:W,h:H}=sizeUp();
+    ctx.clearRect(0,0,W,H);
+    const vis=series.filter(s=>s.on&&s.x.length);
+    let xmin=Infinity,xmax=-Infinity,ymin=Infinity,ymax=-Infinity;
+    for(const s of vis){ for(let i=0;i<s.x.length;i++){ const xv=s.x[i]; let yv=s.y[i];
+      if(o.ylog) yv=Math.max(yv,o.yClampMin);
+      if(xv<xmin)xmin=xv; if(xv>xmax)xmax=xv; if(yv<ymin)ymin=yv; if(yv>ymax)ymax=yv; } }
+    for(const vl of vlines){ if(vl.x<xmin)xmin=vl.x; if(vl.x>xmax)xmax=vl.x; }
+    if(!isFinite(xmin)){ xmin=1;xmax=10;ymin=o.ylog?0.01:0;ymax=o.ylog?10:1; }
+    if(o.fixedY){ ymin=o.fixedY[0]; ymax=o.fixedY[1]; }
+    else if(o.ylog){ ymin=Math.max(ymin/1.6,o.yClampMin); ymax=ymax*1.6; if(ymin===ymax){ymin/=10;ymax*=10;} }
+    else { const m=(ymax-ymin)*0.08||1; ymin-=m; ymax+=m; }
+    if(o.xlog){ xmin=Math.max(xmin,0.5); if(xmin===xmax)xmax=xmin*10; }
+    else if(xmin===xmax){xmax=xmin+1;}
+    // frame + gridlines
+    ctx.font='11px "IBM Plex Mono",monospace'; ctx.fillStyle='#8E9A88'; ctx.strokeStyle='#ECEFE5'; ctx.lineWidth=1;
+    const yt=o.ylog?logTicks(ymin,ymax):niceLinTicks(ymin,ymax);
+    for(const v of yt){ const y=ty(v,ymin,ymax,H);
+      ctx.beginPath();ctx.moveTo(o.padL,y);ctx.lineTo(W-o.padR,y);ctx.stroke();
+      ctx.textAlign='right'; ctx.fillText(fmt(v),o.padL-8,y+3.5); }
+    const xt=o.xlog?logTicks(xmin,xmax):niceLinTicks(xmin,xmax);
+    for(const v of xt){ const x=tx(v,xmin,xmax,W);
+      ctx.beginPath();ctx.moveTo(x,o.padT);ctx.lineTo(x,H-o.padB);ctx.stroke();
+      ctx.textAlign='center'; ctx.fillText(fmt(v),x,H-o.padB+16); }
+    ctx.strokeStyle='#C9D1BD'; ctx.lineWidth=1.4;
+    ctx.strokeRect(o.padL,o.padT,W-o.padL-o.padR,H-o.padT-o.padB);
+    // axis labels
+    ctx.fillStyle='#66735F'; ctx.font='12px "IBM Plex Sans KR",sans-serif'; ctx.textAlign='center';
+    ctx.fillText(o.xlabel,(o.padL+W-o.padR)/2,H-8);
+    ctx.save(); ctx.translate(14,(o.padT+H-o.padB)/2); ctx.rotate(-Math.PI/2); ctx.fillText(o.ylabel,0,0); ctx.restore();
+    // vlines
+    for(const vl of vlines){ const x=tx(vl.x,xmin,xmax,W);
+      ctx.strokeStyle=vl.color||'#C99227'; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
+      ctx.beginPath();ctx.moveTo(x,o.padT);ctx.lineTo(x,H-o.padB);ctx.stroke(); ctx.setLineDash([]);
+      if(vl.label){ ctx.fillStyle=vl.color||'#C99227'; ctx.font='11.5px "IBM Plex Sans KR",sans-serif';
+        ctx.textAlign=vl.align||'center'; ctx.fillText(vl.label,x+(vl.dx||0),o.padT+12+(vl.dy||0)); } }
+    // series
+    for(const s of vis){
+      ctx.strokeStyle=s.color; ctx.lineWidth=s.widthPx||2.3;
+      ctx.setLineDash(s.dash||[]);
+      ctx.beginPath(); let started=false;
+      for(let i=0;i<s.x.length;i++){
+        const x=tx(s.x[i],xmin,xmax,W), y=ty(s.y[i],ymin,ymax,H);
+        if(!started){ctx.moveTo(x,y);started=true;} else ctx.lineTo(x,y);
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+      if(s.dots){ ctx.fillStyle=s.color;
+        for(let i=0;i<s.x.length;i++){ const x=tx(s.x[i],xmin,xmax,W),y=ty(s.y[i],ymin,ymax,H);
+          ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill(); } }
+    }
+    // annotations
+    ctx.font='11.5px "IBM Plex Sans KR",sans-serif';
+    for(const a of annos){ const x=tx(a.x,xmin,xmax,W), y=ty(a.y,ymin,ymax,H);
+      ctx.fillStyle=a.color||'#66735F'; ctx.textAlign=a.align||'left';
+      ctx.fillText(a.text,x+(a.dx||0),y+(a.dy||0)); }
+  }
+  window.addEventListener('resize',()=>draw());
+  return {
+    draw, ctx,
+    set series(s){series=s;}, get series(){return series;},
+    set vlines(v){vlines=v;}, set annos(a){annos=a;},
+    set xlog(v){o.xlog=v;}, get xlog(){return o.xlog;},
+    set ylog(v){o.ylog=v;}, get ylog(){return o.ylog;},
+    set fixedY(v){o.fixedY=v;}, set ylabel(v){o.ylabel=v;}
+  };
+}
+function makeChips(holder,defs,onToggle){
+  holder.innerHTML='';
+  defs.forEach(d=>{
+    const b=document.createElement('button');
+    b.className='chip'+(d.on?' on':' off');
+    b.style.color=d.color||'var(--muted)';
+    b.innerHTML='<span class="dot" style="background:'+(d.color||'#9AA89B')+'"></span>'+d.label;
+    b.addEventListener('click',()=>{ d.on=!d.on; b.classList.toggle('on',d.on); b.classList.toggle('off',!d.on); onToggle(d); });
+    holder.appendChild(b);
+  });
+}
+
+/* =====================================================
+   DOUBLE DESCENT
+===================================================== */
+const DD={D:15,gamma:0.4,nTest:300,running:false,abort:false,
+  results:[], // {P, te(median), tr(mean)}
+};
+function solveSym(A,b,n){
+  const x=Float64Array.from(b);
+  for(let c=0;c<n;c++){
+    let piv=c,mx=Math.abs(A[c*n+c]);
+    for(let r=c+1;r<n;r++){const v=Math.abs(A[r*n+c]);if(v>mx){mx=v;piv=r;}}
+    if(piv!==c){for(let j=0;j<n;j++){const t=A[c*n+j];A[c*n+j]=A[piv*n+j];A[piv*n+j]=t;}const t=x[c];x[c]=x[piv];x[piv]=t;}
+    const d=A[c*n+c]||1e-300;
+    for(let r=c+1;r<n;r++){const f=A[r*n+c]/d;if(f===0)continue;for(let j=c;j<n;j++)A[r*n+j]-=f*A[c*n+j];x[r]-=f*x[c];}
+  }
+  for(let r=n-1;r>=0;r--){let s=x[r];for(let j=r+1;j<n;j++)s-=A[r*n+j]*x[j];x[r]=s/(A[r*n+r]||1e-300);}
+  return x;
+}
+function ddFit(N,P,noise,seed,cfg){
+  const D=cfg.D, nTest=DD.nTest, gamma=cfg.gamma, ridge=cfg.ridge, feat=cfg.feat;
+  const rng=mulberry32(seed*104729+P*31+7);
+  const w=new Float64Array(D);let nm=0;
+  for(let i=0;i<D;i++){w[i]=gaussOf(rng);nm+=w[i]*w[i];}nm=Math.sqrt(nm);
+  for(let i=0;i<D;i++)w[i]/=nm;
+  const X=new Float64Array(N*D),y=new Float64Array(N);
+  for(let i=0;i<N;i++){let s=0;for(let j=0;j<D;j++){const v=gaussOf(rng);X[i*D+j]=v;s+=v*w[j];}y[i]=s+noise*gaussOf(rng);}
+  const Xt=new Float64Array(nTest*D),yt=new Float64Array(nTest);
+  for(let i=0;i<nTest;i++){let s=0;for(let j=0;j<D;j++){const v=gaussOf(rng);Xt[i*D+j]=v;s+=v*w[j];}yt[i]=s;}
+  const V=new Float64Array(D*P),bb=new Float64Array(P);
+  for(let i=0;i<V.length;i++)V[i]=gamma*gaussOf(rng);
+  for(let i=0;i<P;i++)bb[i]=feat==='cos'?rng()*2*Math.PI:gaussOf(rng)*0.5;
+  const sc=Math.sqrt(2/P);
+  function feats(Xm,n){const F=new Float64Array(n*P);
+    for(let i=0;i<n;i++){const xo=i*D,fo=i*P;
+      for(let j=0;j<P;j++){let s=bb[j];for(let k=0;k<D;k++)s+=Xm[xo+k]*V[k*P+j];
+        F[fo+j]=feat==='cos'?sc*Math.cos(s):sc*Math.max(0,s);}}
+    return F;}
+  const Phi=feats(X,N), Phit=feats(Xt,nTest);
+  const eps=Math.max(ridge,1e-8); let beta;
+  if(P<N){
+    const G=new Float64Array(P*P);
+    for(let i=0;i<N;i++){const fo=i*P;for(let a=0;a<P;a++){const fa=Phi[fo+a];const go=a*P;for(let c=a;c<P;c++)G[go+c]+=fa*Phi[fo+c];}}
+    for(let a=0;a<P;a++){for(let c=a+1;c<P;c++)G[c*P+a]=G[a*P+c];G[a*P+a]+=eps*N;}
+    const rhs=new Float64Array(P);
+    for(let i=0;i<N;i++){const fo=i*P;for(let a=0;a<P;a++)rhs[a]+=Phi[fo+a]*y[i];}
+    beta=solveSym(G,rhs,P);
+  } else {
+    const K=new Float64Array(N*N);
+    for(let i=0;i<N;i++)for(let j=i;j<N;j++){let s=0;const fi=i*P,fj=j*P;for(let a=0;a<P;a++)s+=Phi[fi+a]*Phi[fj+a];K[i*N+j]=s;K[j*N+i]=s;}
+    for(let i=0;i<N;i++)K[i*N+i]+=eps*N;
+    const alpha=solveSym(K,y,N);
+    beta=new Float64Array(P);
+    for(let i=0;i<N;i++){const fo=i*P,a=alpha[i];for(let c=0;c<P;c++)beta[c]+=Phi[fo+c]*a;}
+  }
+  let trM=0;for(let i=0;i<N;i++){let s=0;const fo=i*P;for(let a=0;a<P;a++)s+=Phi[fo+a]*beta[a];const d=s-y[i];trM+=d*d;}trM/=N;
+  let teM=0;for(let i=0;i<nTest;i++){let s=0;const fo=i*P;for(let a=0;a<P;a++)s+=Phit[fo+a]*beta[a];const d=s-yt[i];teM+=d*d;}teM/=nTest;
+  return {trM,teM};
+}
+function ddPlist(N,mult){
+  const s=new Set();
+  const a=Math.log10(2), b=Math.log10(mult*N);
+  const npts=mult>=16?28:24;
+  for(let i=0;i<npts;i++) s.add(Math.round(Math.pow(10,a+(b-a)*i/(npts-1))));
+  [N-5,N-2,N-1,N,N+1,N+2,N+5,N+12].forEach(v=>{if(v>=2)s.add(v);});
+  return [...s].sort((x,y)=>x-y);
+}
+const ddPlot=LinePlot(document.getElementById('ddChart'),{xlog:true,ylog:true,xlabel:'parameter count P (log)',ylabel:'MSE (log)',yClampMin:1e-6});
+const ddSeries={
+  test:{label:'Test error',color:'#C2452D',x:[],y:[],on:true,dots:true,widthPx:2.6},
+  train:{label:'Training error',color:'#3E6B8C',x:[],y:[],on:true,dots:true,widthPx:2},
+  ghost:{label:'Textbook prediction (schematic)',color:'#9AA89B',x:[],y:[],on:true,dash:[6,5],widthPx:2},
+};
+const ddOpt={ylog:{label:'Vertical log axis',color:'#66735F',on:true},xlogc:{label:'Horizontal log axis',color:'#66735F',on:true}};
+function ddRedraw(){
+  ddPlot.series=[ddSeries.ghost,ddSeries.train,ddSeries.test];
+  ddPlot.ylog=ddOpt.ylog.on; ddPlot.xlog=ddOpt.xlogc.on;
+  const N=+document.getElementById('ddN').value;
+  ddPlot.vlines=[{x:N,label:'interpolation threshold P=N',color:'#C99227',align:'left',dx:6}];
+  ddPlot.draw();
+}
+makeChips(document.getElementById('ddChips'),
+  [ddSeries.test,ddSeries.train,ddSeries.ghost,ddOpt.ylog,ddOpt.xlogc], ddRedraw);
+function ddGhost(N,under){
+  // schematic textbook U: decreasing then monotone rise past sweet spot
+  const xs=[],ys=[];
+  const y0=under*1.6, ymin=under, rise=under*9;
+  for(let i=0;i<=60;i++){
+    const P=Math.pow(10,Math.log10(2)+(Math.log10(8*N)-Math.log10(2))*i/60);
+    const dec=ymin+(y0-ymin)*Math.exp(-P/(0.18*N));
+    const inc=rise*Math.pow(Math.max(P/N-0.45,0),1.7);
+    xs.push(P); ys.push(dec+inc);
+  }
+  ddSeries.ghost.x=xs; ddSeries.ghost.y=ys;
+}
+async function ddRun(){
+  if(DD.running)return;
+  DD.running=true; DD.abort=false;
+  document.getElementById('ddRun').disabled=true;
+  document.getElementById('ddStop').disabled=false;
+  const N=+document.getElementById('ddN').value;
+  const noise=+document.getElementById('ddNoise').value;
+  const trials=+document.getElementById('ddTrials').value;
+  const cfg={D:+document.getElementById('ddD').value,
+             gamma:+document.getElementById('ddG').value,
+             ridge:+document.getElementById('ddRidge').value,
+             feat:document.getElementById('ddFeat').value};
+  const Pl=ddPlist(N,+document.getElementById('ddRange').value);
+  ddSeries.test.x=[];ddSeries.test.y=[];ddSeries.train.x=[];ddSeries.train.y=[];
+  ddSeries.ghost.x=[];ddSeries.ghost.y=[];
+  DD.results=[];
+  const sub=document.getElementById('ddSub'), prog=document.getElementById('ddProg');
+  const total=Pl.length;
+  for(let pi=0;pi<Pl.length;pi++){
+    if(DD.abort)break;
+    const P=Pl[pi];
+    sub.textContent=`Computing — P=${P} (${pi+1}/${total}, ${trials} trials)`;
+    const te=[],tr=[];
+    for(let t=0;t<trials;t++){
+      if(DD.abort)break;
+      const r=ddFit(N,P,noise,t,cfg);
+      te.push(r.teM); tr.push(r.trM);
+      await new Promise(res=>setTimeout(res,0));
+    }
+    if(DD.abort)break;
+    te.sort((a,b)=>a-b);
+    const med=te[Math.floor(te.length/2)];
+    const trm=tr.reduce((a,b)=>a+b,0)/tr.length;
+    DD.results.push({P,te:med,tr:trm});
+    ddSeries.test.x.push(P); ddSeries.test.y.push(med);
+    ddSeries.train.x.push(P); ddSeries.train.y.push(Math.max(trm,1e-6));
+    prog.style.width=((pi+1)/total*100).toFixed(1)+'%';
+    if(DD.results.length===6){ // seed the ghost once under-region estimate exists
+      const under=Math.min(...DD.results.map(r=>r.te));
+      ddGhost(N,under);
+    }
+    ddRedraw();
+  }
+  // final readouts
+  if(DD.results.length>4){
+    const under=Math.min(...DD.results.filter(r=>r.P<N*0.8).map(r=>r.te));
+    const peakArr=DD.results.filter(r=>Math.abs(r.P-N)<=Math.max(5,N*0.04)).map(r=>r.te);
+    const peak=peakArr.length?Math.max(...peakArr):NaN;
+    const overArr=DD.results.filter(r=>r.P>2*N).map(r=>r.te);
+    const over=overArr.length?Math.min(...overArr):NaN;
+    ddGhost(N,under);
+    document.getElementById('ddUnder').textContent=under.toFixed(3);
+    document.getElementById('ddPeak').textContent=isNaN(peak)?'—':peak.toFixed(1);
+    document.getElementById('ddOver').textContent=isNaN(over)?'—':over.toFixed(3);
+    const dd = !isNaN(over)&&!isNaN(peak)&&peak>under*3&&over<under;
+    const peakOnly = !dd&&!isNaN(peak)&&peak>under*3;
+    let verdictTxt = dd?'Double descent ✓':(peakOnly?'Peak only':'No peak');
+    if(cfg.ridge>0&&!dd&&!peakOnly) verdictTxt='Suppressed by regularization';
+    if(cfg.D<=4&&!dd) verdictTxt='Low-dim — no threshold';
+    document.getElementById('ddVerdict').textContent=verdictTxt;
+    document.getElementById('ddVerdict').style.color= dd?'var(--ok)':'var(--muted)';
+    let find;
+    if(dd){
+      find=`<b>Verdict: double descent reproduced.</b> In the classical regime (P&lt;N), just as the textbook says, raising complexity eventually worsened test error (min ${under.toFixed(2)}), and it exploded to ${peak.toFixed(0)} at the interpolation threshold P=N. But beyond that the error descended again, reaching <b>${over.toFixed(2)} — about 1/${(under/over).toFixed(1)} of the classical-regime minimum</b>. The textbook's U is the left half of this curve.${cfg.feat==='relu'?' (The same structure appears with ReLU random features too — showing the phenomenon isn’t a fluke of cos features.)':''}`;
+    } else if(cfg.ridge>0&&!peakOnly){
+      find=`<b>Verdict: regularization erased the peak (λ=${cfg.ridge}).</b> The ridge term stops the solution from contorting to thread the noise at the threshold. With enough explicit regularization, double descent is not observed — a control experiment showing the peak comes from the <b>absence</b> of regularization. Set λ=0 and compare.`;
+    } else if(noise===0){
+      find=`<b>Verdict: peak vanishes (σ=0).</b> With no noise there is no ‘wrong point’ that must be forcibly threaded at the threshold, so no explosion occurs. A control experiment confirming that label noise is what makes the peak.`;
+    } else if(cfg.D<=4){
+      find=`<b>Verdict: at low dimension the threshold can't stand (D=${cfg.D}).</b> When the input dimension is low, the function is nearly recovered from just a few features, so there is no stage for the threshold's ‘acrobatics.’ This is why attempts to see double descent with 1-D polynomial regression fail — a direct check of condition ②. Raise D to 15 and run again.`;
+    } else if(peakOnly&&cfg.gamma>=0.8){
+      find=`<b>Verdict: the peak exploded (${peak.toFixed(0)}) but the re-descent never came (γ=${cfg.gamma}).</b> When the bandwidth is large the random features get too ‘wiggly,’ so even adding parameters doesn't let the smooth minimum-norm solution approach the target function. The second descent of double descent isn't free — it comes only <b>when the features fit the problem</b>. (A trap actually hit while building this simulation.) Set γ back to 0.4.`;
+    } else if(peakOnly){
+      find=`A peak (${peak.toFixed(0)}) was observed but the re-descent didn't break below the classical-regime min (${under.toFixed(2)}). Adjust γ to 0.3~0.5, D to 10~20, or extend the sweep range to 16N and run again.`;
+    } else {
+      find=`The peak / re-descent came out weak. Increase the trial count or set σ near 0.25 and run again.`;
+    }
+    document.getElementById('ddFind').innerHTML=find;
+  }
+  sub.textContent=DD.abort?'Stopped':'Done — every point is a regression problem solved in this browser';
+  DD.running=false;
+  document.getElementById('ddRun').disabled=false;
+  document.getElementById('ddStop').disabled=true;
+  ddRedraw();
+}
+document.getElementById('ddRun').addEventListener('click',ddRun);
+document.getElementById('ddStop').addEventListener('click',()=>{DD.abort=true;});
+document.getElementById('ddN').addEventListener('input',e=>{document.getElementById('ddNv').textContent=e.target.value;ddRedraw();});
+document.getElementById('ddNoise').addEventListener('input',e=>{document.getElementById('ddNoiseV').textContent=(+e.target.value).toFixed(2);});
+document.getElementById('ddTrials').addEventListener('input',e=>{document.getElementById('ddTrialsV').textContent=e.target.value;});
+document.getElementById('ddD').addEventListener('input',e=>{document.getElementById('ddDv').textContent=e.target.value;});
+document.getElementById('ddG').addEventListener('input',e=>{document.getElementById('ddGv').textContent=(+e.target.value).toFixed(2);});
+function ddSetDefaults(){
+  const set=(id,v)=>{document.getElementById(id).value=v;};
+  set('ddNoise',0.25);set('ddD',15);set('ddG',0.4);set('ddRidge','0');set('ddFeat','cos');
+  document.getElementById('ddNoiseV').textContent='0.25';
+  document.getElementById('ddDv').textContent='15';
+  document.getElementById('ddGv').textContent='0.40';
+}
+document.querySelectorAll('[data-dd]').forEach(b=>b.addEventListener('click',()=>{
+  const m=b.dataset.dd;
+  ddSetDefaults();
+  if(m==='nonoise'){document.getElementById('ddNoise').value=0;document.getElementById('ddNoiseV').textContent='0.00';}
+  if(m==='loudnoise'){document.getElementById('ddNoise').value=0.5;document.getElementById('ddNoiseV').textContent='0.50';}
+  if(m==='ridge'){document.getElementById('ddRidge').value='0.001';}
+  if(m==='lowdim'){document.getElementById('ddD').value=2;document.getElementById('ddDv').textContent='2';}
+  if(m==='widegamma'){document.getElementById('ddG').value=1.0;document.getElementById('ddGv').textContent='1.00';}
+  if(!DD.running) ddRun();
+}));
+ddRedraw();
+
+/* =====================================================
+   GROKKING
+===================================================== */
+const GK={sim:null,running:false,hist:[],memo:null,grok:null,maxSteps:12000,raf:null};
+function makeGrok(cfg){
+  const {p,width,frac,wd,lr,seed,act,op}=cfg;
+  const rng=mulberry32(seed*7919+1);
+  const nAll=p*p;
+  const A=new Int32Array(nAll),B=new Int32Array(nAll),Lab=new Int32Array(nAll);
+  let k=0;for(let a=0;a<p;a++)for(let b=0;b<p;b++){A[k]=a;B[k]=b;
+    Lab[k]= op==='add'?(a+b)%p : op==='sub'?((a-b)%p+p)%p : (a*b)%p; k++;}
+  const idx=[...Array(nAll).keys()];
+  for(let i=nAll-1;i>0;i--){const j=Math.floor(rng()*(i+1));const t=idx[i];idx[i]=idx[j];idx[j]=t;}
+  const ntr=Math.round(frac*nAll);
+  const din=2*p;
+  function buildX(ids){const X=new Float64Array(ids.length*din);
+    for(let i=0;i<ids.length;i++){X[i*din+A[ids[i]]]=1;X[i*din+p+B[ids[i]]]=1;}return X;}
+  const trIds=idx.slice(0,ntr), teIds=idx.slice(ntr);
+  const Xtr=buildX(trIds), Xte=buildX(teIds);
+  const Ytr=new Float64Array(ntr*p);for(let i=0;i<ntr;i++)Ytr[i*p+Lab[trIds[i]]]=1;
+  const ytr=trIds.map(i=>Lab[i]), yte=teIds.map(i=>Lab[i]);
+  const W1=new Float64Array(din*width),W2=new Float64Array(width*p);
+  for(let i=0;i<W1.length;i++)W1[i]=gaussOf(rng)/Math.sqrt(din);
+  for(let i=0;i<W2.length;i++)W2[i]=gaussOf(rng)/Math.sqrt(width);
+  const mW1=new Float64Array(W1.length),vW1=new Float64Array(W1.length);
+  const mW2=new Float64Array(W2.length),vW2=new Float64Array(W2.length);
+  const H=new Float64Array(ntr*width),Aq=new Float64Array(ntr*width);
+  const Out=new Float64Array(ntr*p),dOut=new Float64Array(ntr*p),dA=new Float64Array(ntr*width);
+  const gW1=new Float64Array(W1.length),gW2=new Float64Array(W2.length);
+  let step=0;
+  function mm(Xm,Wm,Cm,n,m,q){Cm.fill(0);
+    for(let i=0;i<n;i++){const xo=i*m,co=i*q;
+      for(let kk=0;kk<m;kk++){const x=Xm[xo+kk];if(x===0)continue;const wo=kk*q;
+        for(let j=0;j<q;j++)Cm[co+j]+=x*Wm[wo+j];}}}
+  function adamw(W,g,m,v){const b1=0.9,b2=0.98,e=1e-8;
+    const c1=1-Math.pow(b1,step),c2=1-Math.pow(b2,step);
+    for(let i=0;i<W.length;i++){m[i]=b1*m[i]+(1-b1)*g[i];v[i]=b2*v[i]+(1-b2)*g[i]*g[i];
+      W[i]-=lr*((m[i]/c1)/(Math.sqrt(v[i]/c2)+e)+wd*W[i]);}}
+  function trainStep(){
+    step++;
+    mm(Xtr,W1,H,ntr,din,width);
+    if(act==='quad'){for(let i=0;i<H.length;i++)Aq[i]=H[i]*H[i];}
+    else{for(let i=0;i<H.length;i++)Aq[i]=H[i]>0?H[i]:0;}
+    mm(Aq,W2,Out,ntr,width,p);
+    for(let i=0;i<Out.length;i++){dOut[i]=2*(Out[i]-Ytr[i])/ntr;}
+    gW2.fill(0);
+    for(let i=0;i<ntr;i++){const ao=i*width,doo=i*p;
+      for(let kk=0;kk<width;kk++){const a=Aq[ao+kk];if(a===0)continue;const go=kk*p;
+        for(let j=0;j<p;j++)gW2[go+j]+=a*dOut[doo+j];}}
+    for(let i=0;i<ntr;i++){const doo=i*p,ao=i*width;
+      for(let kk=0;kk<width;kk++){let s=0;const wo=kk*p;
+        for(let j=0;j<p;j++)s+=dOut[doo+j]*W2[wo+j];
+        dA[ao+kk]= act==='quad'? s*2*H[ao+kk] : (H[ao+kk]>0?s:0);}}
+    gW1.fill(0);
+    for(let i=0;i<ntr;i++){const xo=i*din,ao=i*width;
+      for(let kk=0;kk<din;kk++){const x=Xtr[xo+kk];if(x===0)continue;const go=kk*width;
+        for(let j=0;j<width;j++)gW1[go+j]+=x*dA[ao+j];}}
+    adamw(W1,gW1,mW1,vW1); adamw(W2,gW2,mW2,vW2);
+  }
+  function evalSet(Xm,n,yv){
+    const Hm=new Float64Array(n*width),Om=new Float64Array(n*p);
+    mm(Xm,W1,Hm,n,din,width);
+    if(act==='quad'){for(let i=0;i<Hm.length;i++)Hm[i]*=Hm[i];}
+    else{for(let i=0;i<Hm.length;i++)Hm[i]=Hm[i]>0?Hm[i]:0;}
+    mm(Hm,W2,Om,n,width,p);
+    let acc=0,loss=0;
+    for(let i=0;i<n;i++){let bi=0,bv=-1e18;
+      for(let j=0;j<p;j++){const o=Om[i*p+j];if(o>bv){bv=o;bi=j;}
+        const t=(j===yv[i])?1:0;loss+=(o-t)*(o-t);}
+      if(bi===yv[i])acc++;}
+    return [acc/n,loss/n];
+  }
+  return {trainStep,
+    evalTrain:()=>evalSet(Xtr,ntr,ytr),
+    evalTest:()=>evalSet(Xte,nAll-ntr,yte),
+    get step(){return step;}, ntr, nte:nAll-ntr, p};
+}
+const gkPlot=LinePlot(document.getElementById('gkChart'),{xlog:true,ylog:false,xlabel:'training step (log)',ylabel:'accuracy (%)'});
+gkPlot.fixedY=[0,104];
+const gkSeries={
+  tr:{label:'Train accuracy',color:'#3E6B8C',x:[],y:[],on:true,widthPx:2.4},
+  te:{label:'Test accuracy',color:'#C2452D',x:[],y:[],on:true,widthPx:2.7},
+  ghost:{label:'Textbook prediction (schematic)',color:'#9AA89B',x:[],y:[],on:true,dash:[6,5],widthPx:2},
+};
+const gkOpt={xlogc:{label:'Horizontal log axis',color:'#66735F',on:true},
+             loss:{label:'Show loss curves',color:'#66735F',on:false}};
+const gkLossSeries={
+  tr:{label:'Train loss',color:'#3E6B8C',x:[],y:[],on:true,widthPx:2.2},
+  te:{label:'Test loss',color:'#C2452D',x:[],y:[],on:true,widthPx:2.5},
+};
+function gkRedraw(){
+  const lossMode=gkOpt.loss.on;
+  if(lossMode){
+    gkPlot.series=[gkLossSeries.tr,gkLossSeries.te];
+    gkPlot.ylog=true; gkPlot.fixedY=null; gkPlot.ylabel='MSE loss (log)';
+    document.getElementById('gkTitle').textContent='Loss vs training step';
+  } else {
+    gkPlot.series=[gkSeries.ghost,gkSeries.tr,gkSeries.te];
+    gkPlot.ylog=false; gkPlot.fixedY=[0,104]; gkPlot.ylabel='accuracy (%)';
+    document.getElementById('gkTitle').textContent='Accuracy vs training step'+(gkOpt.xlogc.on?' (log axis)':'');
+  }
+  gkPlot.xlog=gkOpt.xlogc.on;
+  const vl=[];
+  if(GK.memo)vl.push({x:GK.memo,label:'memorized',color:'#3E6B8C',align:'right',dx:-6});
+  if(GK.grok)vl.push({x:GK.grok,label:'grokking!',color:'#C99227',align:'left',dx:6});
+  gkPlot.vlines=vl;
+  gkPlot.draw();
+}
+makeChips(document.getElementById('gkChips'),
+  [gkSeries.te,gkSeries.tr,gkSeries.ghost,gkOpt.xlogc,gkOpt.loss], gkRedraw);
+function gkGhostBuild(memoStep,maxStep){
+  // textbook expectation: test follows train almost immediately (S-curve around memoStep)
+  const xs=[],ys=[];
+  const m=memoStep||20;
+  for(let i=0;i<=70;i++){
+    const s=Math.pow(10,Math.log10(8)+(Math.log10(Math.max(maxStep,1000))-Math.log10(8))*i/70);
+    const v=100/(1+Math.exp(-(Math.log10(s)-Math.log10(m*1.8))*7));
+    xs.push(s);ys.push(Math.max(v, GK.sim?100/GK.sim.p:6));
+  }
+  gkSeries.ghost.x=xs;gkSeries.ghost.y=ys;
+}
+function gkReset(){
+  if(GK.raf)cancelAnimationFrame(GK.raf);
+  GK.sim=null;GK.running=false;GK.hist=[];GK.memo=null;GK.grok=null;
+  gkSeries.tr.x=[];gkSeries.tr.y=[];gkSeries.te.x=[];gkSeries.te.y=[];
+  gkSeries.ghost.x=[];gkSeries.ghost.y=[];
+  gkLossSeries.tr.x=[];gkLossSeries.tr.y=[];gkLossSeries.te.x=[];gkLossSeries.te.y=[];
+  document.getElementById('gkRun').disabled=false;
+  document.getElementById('gkPause').disabled=true;
+  document.getElementById('gkRun').textContent='▶ Start Training';
+  document.getElementById('gkSub').textContent='Idle — ▶ Start Training';
+  const bd=document.getElementById('gkBadge');bd.textContent='Idle';bd.className='badge';
+  document.getElementById('gkStat').textContent='step 0 · train — · test —';
+  ['gkMemo','gkGrok','gkGap','gkData'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('gkFind').innerHTML='The memorization moment and grokking moment are auto-detected and logged here. Compare with the λ=0 preset.';
+  gkRedraw();
+}
+function gkStart(){
+  if(GK.running)return;
+  if(!GK.sim){
+    const p=+document.getElementById('gkP').value;
+    const wd=+document.getElementById('gkWd').value;
+    const frac=+document.getElementById('gkFrac').value;
+    const seed=+document.getElementById('gkSeed').value||0;
+    const op=document.getElementById('gkOp').value;
+    const act=document.getElementById('gkAct').value;
+    const width=+document.getElementById('gkWidth').value;
+    const lr=+document.getElementById('gkLr').value;
+    GK.sim=makeGrok({p,width,frac,wd,lr,seed,act,op});
+    GK.hist=[];GK.memo=null;GK.grok=null;
+    const opSym=op==='add'?'a+b':op==='sub'?'a−b':'a×b';
+    document.getElementById('gkData').innerHTML=GK.sim.ntr+'<small> train / '+GK.sim.nte+' test · '+opSym+'</small>';
+    gkGhostBuild(40,3000);
+  }
+  GK.running=true;
+  document.getElementById('gkRun').disabled=true;
+  document.getElementById('gkPause').disabled=false;
+  loop();
+}
+function loop(){
+  if(!GK.running)return;
+  const spf=+document.getElementById('gkSpeed').value; // steps per frame (eval-resolution chunks of 20)
+  const sim=GK.sim;
+  const evalEvery=20;
+  let done=false;
+  const budget=spf*evalEvery; // raw steps this frame
+  let s=0;
+  while(s<budget){
+    sim.trainStep(); s++;
+    if(sim.step%evalEvery===0){
+      const [tra,trl]=sim.evalTrain(),[tea,tel]=sim.evalTest();
+      GK.hist.push({s:sim.step,tra,tea,trl,tel});
+      gkSeries.tr.x.push(sim.step);gkSeries.tr.y.push(tra*100);
+      gkSeries.te.x.push(sim.step);gkSeries.te.y.push(tea*100);
+      gkLossSeries.tr.x.push(sim.step);gkLossSeries.tr.y.push(Math.max(trl,1e-9));
+      gkLossSeries.te.x.push(sim.step);gkLossSeries.te.y.push(Math.max(tel,1e-9));
+      if(GK.memo===null&&tra>0.99){GK.memo=sim.step;document.getElementById('gkMemo').innerHTML='step '+GK.memo;gkGhostBuild(GK.memo,Math.max(3000,sim.step*4));}
+      if(GK.grok===null&&tea>=0.95){GK.grok=sim.step;document.getElementById('gkGrok').innerHTML='step '+GK.grok;}
+      // badge + stats
+      const bd=document.getElementById('gkBadge');
+      if(GK.grok){bd.textContent='Grokking — generalization achieved';bd.className='badge grok';}
+      else if(GK.memo&&sim.step>GK.memo+100){bd.textContent='Plateau — still memorizing';bd.className='badge plateau';}
+      else if(GK.memo){bd.textContent='Memorized';bd.className='badge memo';}
+      else {bd.textContent='Early training';bd.className='badge';}
+      document.getElementById('gkStat').textContent=`step ${sim.step} · train ${(tra*100).toFixed(0)}% · test ${(tea*100).toFixed(0)}%`;
+      if(GK.grok&&sim.step>=GK.grok+800){done=true;break;}
+      if(sim.step>=GK.maxSteps){done=true;break;}
+    }
+  }
+  document.getElementById('gkSub').textContent=`Training — step ${sim.step.toLocaleString()} / max ${GK.maxSteps.toLocaleString()}`;
+  gkRedraw();
+  if(done){
+    GK.running=false;
+    document.getElementById('gkPause').disabled=true;
+    document.getElementById('gkRun').disabled=false;
+    document.getElementById('gkRun').textContent='▶ Continue Training';
+    finishReport();
+    return;
+  }
+  GK.raf=requestAnimationFrame(loop);
+}
+function finishReport(){
+  const wd=+document.getElementById('gkWd').value;
+  const frac=+document.getElementById('gkFrac').value;
+  const act=document.getElementById('gkAct').value;
+  const op=document.getElementById('gkOp').value;
+  const opName=op==='add'?'addition':op==='sub'?'subtraction':'multiplication';
+  const sub=document.getElementById('gkSub'), find=document.getElementById('gkFind');
+  if(GK.grok&&GK.memo){
+    const gap=GK.grok-GK.memo;
+    document.getElementById('gkGap').innerHTML=gap.toLocaleString()+'<small> steps</small>';
+    sub.textContent='Done — grokking observed';
+    find.innerHTML=`<b>Verdict: grokking reproduced (modular ${opName}).</b> Training accuracy was already 100% by step ${GK.memo} — it memorized every answer. But test accuracy then stayed on the floor for <b>${gap.toLocaleString()} steps</b> (chance level ≈ ${(100/GK.sim.p).toFixed(0)}%), and only broke 95% at step ${GK.grok.toLocaleString()}. Unlike the textbook's gradual learning curve (gray-green dashed), generalization arrived ${(GK.grok/GK.memo).toFixed(0)}× later — and like a staircase. It happened while weight decay λ=${wd} eroded the memorization circuit.${op!=='add'?' The same drama repeats on non-addition tasks too — evidence that grokking isn’t a fluke of one particular operation.':''}`;
+  } else {
+    sub.textContent='Done — no grokking (max steps reached)';
+    document.getElementById('gkGap').textContent='—';
+    if(wd===0){
+      find.innerHTML=`<b>Verdict: grokking failed — as predicted.</b> With λ=0 there is no ‘size tax’ on the memorization circuit, so the generalizing circuit never gains ground. Train 100% / test on the floor held for the full ${GK.maxSteps.toLocaleString()} steps. A control experiment showing weight decay is the necessary driver of grokking.`;
+    } else if(act==='relu'){
+      find.innerHTML=`<b>Verdict: with ReLU the jump didn't come within the same budget.</b> The h² activation can build the product term of two inputs exactly, cleanly expressing the Fourier (periodic) circuit of modular arithmetic — which is why Gromov (2023) could solve grokking analytically with h². ReLU needs far more neurons and steps to mimic the same circuit, pushing the jump beyond the horizon. A comparison showing that <b>the choice of activation changes what is easy to learn</b> itself. Switch back to h² and rerun with the same seed.`;
+    } else if(frac<0.45){
+      find.innerHTML=`<b>Verdict: grokking failed — too little data.</b> With training pairs only ${(frac*100).toFixed(0)}% of the total, there aren't enough clues to support the generalizing circuit (the periodic structure). The ‘critical data fraction’ phenomenon reported by Power et al. (2022) — raise the fraction above 50% and try again.`;
+    } else {
+      find.innerHTML=`In this setting the jump didn't come within ${GK.maxSteps.toLocaleString()} steps. The grokking moment swings wildly with seed, width, and learning rate (this itself is a research subject). Press ‘▶ Continue Training’ or raise the learning rate to 0.03 and retry.`;
+    }
+  }
+}
+document.getElementById('gkRun').addEventListener('click',()=>{ if(!GK.sim||GK.sim.step>=GK.maxSteps){GK.maxSteps=Math.max(12000,(GK.sim?GK.sim.step:0)+8000);} gkStart(); });
+document.getElementById('gkPause').addEventListener('click',()=>{
+  GK.running=false;
+  if(GK.raf)cancelAnimationFrame(GK.raf);
+  document.getElementById('gkPause').disabled=true;
+  document.getElementById('gkRun').disabled=false;
+  document.getElementById('gkRun').textContent='▶ Continue Training';
+  document.getElementById('gkSub').textContent='Paused — step '+(GK.sim?GK.sim.step:0);
+});
+document.getElementById('gkReset').addEventListener('click',gkReset);
+document.getElementById('gkWd').addEventListener('input',e=>{document.getElementById('gkWdV').textContent=(+e.target.value).toFixed(1);});
+document.getElementById('gkFrac').addEventListener('input',e=>{document.getElementById('gkFracV').textContent=Math.round(e.target.value*100)+'%';});
+document.querySelectorAll('[data-gk]').forEach(b=>b.addEventListener('click',()=>{
+  const m=b.dataset.gk;
+  const wd=document.getElementById('gkWd'),fr=document.getElementById('gkFrac');
+  // presets reset the advanced settings to defaults, then change just one thing (controlled variables)
+  document.getElementById('gkOp').value='add';
+  document.getElementById('gkAct').value='quad';
+  document.getElementById('gkWidth').value='96';
+  document.getElementById('gkLr').value='0.01';
+  wd.value=1; fr.value=0.5;
+  if(m==='nowd'){wd.value=0;}
+  if(m==='lowdata'){fr.value=0.3;}
+  if(m==='mul'){document.getElementById('gkOp').value='mul';}
+  if(m==='relu'){document.getElementById('gkAct').value='relu';}
+  document.getElementById('gkWdV').textContent=(+wd.value).toFixed(1);
+  document.getElementById('gkFracV').textContent=Math.round(fr.value*100)+'%';
+  gkReset(); gkStart();
+}));
+gkReset();
+</script>
+</body>
+</html>
