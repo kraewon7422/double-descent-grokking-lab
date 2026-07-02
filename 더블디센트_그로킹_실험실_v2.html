@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>교과서가 멈춘 곳에서 — 더블 디센트 · 그로킹 재현 실험실</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;900&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#FAFBF6; --grid:#E5EADC; --card:#FFFFFE; --line:#D8DECF;
+  --ink:#1E2922; --muted:#66735F; --faint:#8E9A88;
+  --train:#3E6B8C; --test:#C2452D; --ghost:#9AA89B; --mark:#C99227;
+  --ok:#3E7D4F; --chipbg:#F1F4EA;
+  --serif:'Noto Serif KR',"Apple SD Gothic Neo",serif;
+  --sans:'IBM Plex Sans KR',"Pretendard","Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{-webkit-text-size-adjust:100%}
+body{
+  font-family:var(--sans); color:var(--ink); background:var(--paper);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:28px 28px; line-height:1.7; font-size:15.5px;
+}
+.wrap{max-width:1020px;margin:0 auto;padding:40px 22px 80px}
+/* ---------- header ---------- */
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.14em;color:var(--muted);text-transform:uppercase}
+h1{font-family:var(--serif);font-weight:900;font-size:clamp(26px,4.6vw,42px);line-height:1.32;margin:10px 0 14px}
+h1 .underline{box-shadow:inset 0 -0.42em 0 #F3DBC9}
+.thesis{max-width:760px;color:#3C4A3F;font-size:15.5px}
+.thesis b{color:var(--ink)}
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:4px;margin:34px 0 26px;border-bottom:2px solid var(--line);flex-wrap:wrap}
+.tab{appearance:none;border:none;background:none;cursor:pointer;font-family:var(--sans);font-size:15px;font-weight:500;
+  color:var(--muted);padding:10px 16px 12px;margin-bottom:-2px;border-bottom:3px solid transparent;display:flex;gap:8px;align-items:baseline}
+.tab .no{font-family:var(--mono);font-size:11.5px;color:var(--faint)}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--ink);font-weight:700;border-bottom-color:var(--test)}
+.tab:focus-visible{outline:2px solid var(--train);outline-offset:2px;border-radius:4px}
+.panel{display:none}
+.panel.on{display:block;animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.panel.on{animation:none}}
+/* ---------- cards & layout ---------- */
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:24px 26px;margin-bottom:18px;box-shadow:0 1px 0 rgba(30,41,34,.04)}
+.card h2{font-family:var(--serif);font-weight:900;font-size:21px;margin-bottom:12px;line-height:1.4}
+.card h3{font-size:15.5px;font-weight:700;margin:18px 0 6px}
+.card p{margin:8px 0;color:#33402F}
+.card p.note{font-size:13.5px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media (max-width:760px){.two{grid-template-columns:1fr}}
+.kicker{font-family:var(--mono);font-size:11.5px;letter-spacing:.12em;color:var(--test);font-weight:600}
+.q{font-family:var(--serif);font-weight:700;font-size:17px;background:#FBF4EC;border-left:4px solid var(--test);padding:14px 18px;border-radius:0 8px 8px 0;margin:14px 0}
+.math{font-family:var(--mono);font-size:13.5px;background:var(--chipbg);border:1px solid var(--line);border-radius:6px;padding:2px 7px;white-space:nowrap}
+.mathblock{font-family:var(--mono);font-size:13.5px;background:var(--chipbg);border:1px solid var(--line);border-radius:8px;padding:12px 16px;margin:10px 0;overflow-x:auto;line-height:1.9}
+sup,sub{font-size:.72em}
+.cond{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:14px 0}
+@media (max-width:760px){.cond{grid-template-columns:1fr}}
+.cond .c{background:var(--chipbg);border:1px solid var(--line);border-radius:8px;padding:14px 16px}
+.cond .c b{display:block;margin-bottom:4px;font-size:14.5px}
+.cond .c span{font-size:13px;color:var(--muted);line-height:1.6;display:block}
+/* paper refs */
+.refs{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:760px){.refs{grid-template-columns:1fr}}
+.ref{border:1px solid var(--line);border-radius:8px;padding:13px 16px;background:#FDFDFA}
+.ref .who{font-weight:700;font-size:14px}
+.ref .where{font-family:var(--mono);font-size:11.5px;color:var(--muted);margin:2px 0 6px}
+.ref .what{font-size:13px;color:#46523F;line-height:1.65}
+/* ---------- controls ---------- */
+.labrow{display:grid;grid-template-columns:280px 1fr;gap:18px;align-items:start}
+@media (max-width:860px){.labrow{grid-template-columns:1fr}}
+.controls{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 20px;position:sticky;top:14px}
+@media (max-width:860px){.controls{position:static}}
+.controls h3{font-family:var(--mono);font-size:12px;letter-spacing:.12em;color:var(--muted);margin-bottom:14px;font-weight:600}
+.ctl{margin-bottom:14px}
+.ctl label{display:flex;justify-content:space-between;font-size:13.5px;font-weight:500;margin-bottom:4px}
+.ctl label .val{font-family:var(--mono);font-size:12.5px;color:var(--train);font-weight:600}
+input[type=range]{width:100%;accent-color:var(--train);height:22px}
+select,input[type=number]{font-family:var(--mono);font-size:13px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);width:100%}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+button.act{appearance:none;cursor:pointer;font-family:var(--sans);font-weight:700;font-size:14px;border-radius:8px;
+  padding:9px 16px;border:1px solid var(--ink);background:var(--ink);color:#FAFBF6;flex:1;min-width:96px}
+button.act:hover{background:#33433A}
+button.act:disabled{opacity:.45;cursor:default}
+button.ghostbtn{background:none;color:var(--ink)}
+button.ghostbtn:hover{background:var(--chipbg)}
+button.act:focus-visible{outline:2px solid var(--train);outline-offset:2px}
+details.adv{margin:4px 0 12px;border:1px dashed var(--line);border-radius:8px;padding:0 12px}
+details.adv summary{cursor:pointer;font-family:var(--mono);font-size:11.5px;letter-spacing:.1em;color:var(--muted);padding:9px 0;list-style:none;user-select:none}
+details.adv summary::before{content:'▸ ';color:var(--train)}
+details.adv[open] summary::before{content:'▾ '}
+details.adv[open]{padding-bottom:6px;background:#FDFDF9}
+.presets{margin-top:16px;border-top:1px dashed var(--line);padding-top:12px}
+.presets .pt{font-family:var(--mono);font-size:11px;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+.preset{display:block;width:100%;text-align:left;appearance:none;cursor:pointer;border:1px solid var(--line);background:#FDFDFA;
+  border-radius:8px;padding:8px 12px;margin-bottom:7px;font-family:var(--sans);font-size:13px;color:var(--ink)}
+.preset b{display:block;font-size:13.5px}
+.preset span{color:var(--muted);font-size:12px}
+.preset:hover{border-color:var(--train);background:#F4F8FA}
+.progress{height:6px;background:var(--chipbg);border-radius:4px;overflow:hidden;margin-top:12px}
+.progress i{display:block;height:100%;width:0%;background:var(--train);transition:width .15s}
+/* ---------- chart area ---------- */
+.chartcard{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px 18px 14px}
+.charthead{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:6px}
+.charthead .t{font-weight:700;font-size:15px}
+.charthead .s{font-family:var(--mono);font-size:11.5px;color:var(--muted)}
+canvas{width:100%;display:block}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 4px}
+.chip{appearance:none;cursor:pointer;font-family:var(--sans);font-size:12.5px;font-weight:500;border-radius:99px;
+  padding:5px 13px 5px 9px;border:1px solid var(--line);background:var(--chipbg);color:var(--muted);display:flex;align-items:center;gap:7px}
+.chip .dot{width:9px;height:9px;border-radius:99px;background:currentColor;flex:none}
+.chip.on{color:var(--ink);background:#fff;border-color:#B9C2AE}
+.chip.off{opacity:.5;text-decoration:line-through}
+.chip:focus-visible{outline:2px solid var(--train);outline-offset:1px}
+.readout{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+@media (max-width:760px){.readout{grid-template-columns:repeat(2,1fr)}}
+.ro{background:var(--chipbg);border:1px solid var(--line);border-radius:8px;padding:10px 13px}
+.ro .k{font-size:11.5px;color:var(--muted);letter-spacing:.02em}
+.ro .v{font-family:var(--mono);font-size:17px;font-weight:600;margin-top:2px}
+.ro .v small{font-size:11px;color:var(--muted);font-weight:400}
+.statusline{display:flex;align-items:center;gap:10px;margin-top:14px;flex-wrap:wrap}
+.badge{font-family:var(--mono);font-size:12px;font-weight:600;padding:4px 12px;border-radius:99px;border:1px solid var(--line);background:var(--chipbg);color:var(--muted)}
+.badge.memo{background:#EDF2F7;color:var(--train);border-color:#C4D4E0}
+.badge.plateau{background:#FBF3E3;color:#9A6E12;border-color:#E8D6A8}
+.badge.grok{background:#E8F3EA;color:var(--ok);border-color:#BBD8C2}
+.findings{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px;font-size:13.5px;color:#46523F}
+.findings b{color:var(--ink)}
+footer{margin-top:46px;border-top:2px solid var(--line);padding-top:18px;font-size:12.5px;color:var(--muted);font-family:var(--mono);line-height:1.9}
+.legendnote{font-size:12px;color:var(--faint);margin-top:4px}
+.svgfig{width:100%;height:auto;display:block;margin:8px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">AI기초 심화 탐구 · 직접 재현 실험 노트</div>
+  <h1>교과서는 “복잡하면 과적합”이라 말한다.<br><span class="underline">그렇다면 GPT는 왜 잘 작동하는가?</span></h1>
+  <p class="thesis">AI기초 교과서의 과적합·일반화 단원은 모델이 복잡해질수록 시험(테스트) 오차가 커진다고 가르친다. 이 페이지는 그 명제가 깨지는 두 현상 — <b>더블 디센트</b>(모델 크기 축)와 <b>그로킹</b>(학습 시간 축) — 을 외부 데이터 없이 <b>브라우저 안에서 실제 수치 시뮬레이션으로 재현</b>한다. 그래프의 모든 점은 지금 이 기기에서 계산된 값이다.</p>
+</header>
+
+<nav class="tabs" role="tablist">
+  <button class="tab on" role="tab" data-tab="t1"><span class="no">01</span>이론 분석</button>
+  <button class="tab" role="tab" data-tab="t2"><span class="no">02</span>더블 디센트 실험</button>
+  <button class="tab" role="tab" data-tab="t3"><span class="no">03</span>그로킹 실험</button>
+</nav>
+
+<!-- ================= TAB 1 : THEORY ================= -->
+<section class="panel on" id="t1">
+
+  <div class="card">
+    <div class="kicker">출발점 — 교과서의 명제</div>
+    <h2>편향–분산 트레이드오프와 ‘U자 곡선’</h2>
+    <p>교과서의 설명은 이렇다. 모델이 단순하면 훈련 데이터의 규칙조차 담지 못해 오차가 크고(<b>과소적합, 편향↑</b>), 모델이 복잡하면 훈련 데이터의 잡음까지 외워 새 데이터에서 오차가 커진다(<b>과적합, 분산↑</b>). 그래서 테스트 오차는 복잡도에 대해 U자를 그리고, 우리는 그 골짜기의 ‘적당한 복잡도’를 골라야 한다.</p>
+    <svg class="svgfig" viewBox="0 0 640 190" role="img" aria-label="고전적 U자 곡선 모식도">
+      <line x1="50" y1="160" x2="610" y2="160" stroke="#D8DECF" stroke-width="1.5"/>
+      <line x1="50" y1="20" x2="50" y2="160" stroke="#D8DECF" stroke-width="1.5"/>
+      <path d="M 70 40 C 160 150, 300 150, 420 70 C 480 30, 540 25, 590 22" fill="none" stroke="#C2452D" stroke-width="2.5"/>
+      <path d="M 70 60 C 200 140, 380 152, 590 156" fill="none" stroke="#3E6B8C" stroke-width="2.5"/>
+      <text x="330" y="182" font-size="12" fill="#66735F" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">모델 복잡도 →</text>
+      <text x="46" y="16" font-size="12" fill="#66735F" text-anchor="start" font-family="IBM Plex Sans KR,sans-serif">오차</text>
+      <text x="560" y="44" font-size="12.5" fill="#C2452D" font-weight="700" text-anchor="end" font-family="IBM Plex Sans KR,sans-serif">테스트 오차</text>
+      <text x="560" y="143" font-size="12.5" fill="#3E6B8C" font-weight="700" text-anchor="end" font-family="IBM Plex Sans KR,sans-serif">훈련 오차</text>
+      <text x="255" y="125" font-size="11.5" fill="#8E9A88" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">“최적 복잡도”</text>
+      <line x1="255" y1="130" x2="255" y2="160" stroke="#8E9A88" stroke-width="1" stroke-dasharray="3 3"/>
+    </svg>
+    <div class="q">의문 — 이 그림이 옳다면, 파라미터가 데이터보다 압도적으로 많은 GPT급 거대 모델은 U자의 오른쪽 끝, 즉 최악의 영역에 있어야 한다. 그런데 왜 현실에서는 클수록 더 잘 작동하는가?</div>
+    <p>이 의문에 대한 현대 기계학습의 대답이 아래 두 현상이다. 결론부터 말하면 — <b>교과서가 틀린 것이 아니라, 교과서의 적용 범위가 있었다.</b></p>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <div class="kicker">현상 ① — 모델 크기 축</div>
+      <h2>더블 디센트</h2>
+      <svg class="svgfig" viewBox="0 0 320 130" role="img" aria-label="더블 디센트 모식도">
+        <line x1="20" y1="110" x2="305" y2="110" stroke="#D8DECF" stroke-width="1.2"/>
+        <path d="M 30 35 C 60 90, 90 92, 120 70 C 150 45, 165 20, 175 12 L 182 12 C 195 35, 230 80, 300 95" fill="none" stroke="#C2452D" stroke-width="2.4"/>
+        <line x1="178" y1="8" x2="178" y2="110" stroke="#C99227" stroke-width="1.3" stroke-dasharray="4 3"/>
+        <text x="178" y="124" font-size="10.5" fill="#C99227" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">보간 임계점 P=N</text>
+        <text x="95" y="120" font-size="10.5" fill="#8E9A88" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">고전 영역</text>
+        <text x="255" y="120" font-size="10.5" fill="#8E9A88" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">현대(과대) 영역</text>
+      </svg>
+      <p>파라미터 수 <span class="math">P</span>를 데이터 수 <span class="math">N</span> 너머까지 계속 키우면, 테스트 오차는 U자로 끝나지 않는다. <b><span class="math">P=N</span> 부근에서 한 번 폭발한 뒤, 더 키우면 다시 내려간다</b> — 그것도 처음 U자의 골짜기보다 더 낮게. U가 두 번 나타나서 ‘이중 하강(double descent)’이다.</p>
+      <h3>왜 P=N에서 폭발하는가</h3>
+      <p>모델이 훈련점을 <b>겨우 전부 통과할 수 있게 되는 순간</b>(보간 임계점), 해는 단 하나뿐이라 잡음 한 점까지 정확히 꿰뚫는 극도로 뒤틀린 함수가 강제된다. 자유도가 0인 곡예다.</p>
+      <h3>왜 그 너머에서 다시 내려가는가</h3>
+      <p><span class="math">P&gt;N</span>이면 훈련점을 모두 통과하는 해가 <b>무수히 많아진다</b>. 그중 학습 알고리즘이 고르는 것은 가장 짧고 매끄러운 해 — 최소 노름(minimum-norm) 보간해다. 파라미터가 많을수록 ‘매끄럽게 통과할 여유’가 커져서 오히려 일반화가 좋아진다. 이것이 암묵적 정규화(implicit regularization)다.</p>
+      <div class="mathblock">P &lt; N&nbsp;:&nbsp; β̂ = (Φ<sup>T</sup>Φ)<sup>−1</sup>Φ<sup>T</sup>y &nbsp;(최소제곱해)<br>P ≥ N&nbsp;:&nbsp; β̂ = Φ<sup>T</sup>(ΦΦ<sup>T</sup>)<sup>−1</sup>y &nbsp;(<b>최소 노름 보간해</b>)</div>
+      <p class="note">두 번째 줄이 더블 디센트의 수학적 심장이다. 02번 탭의 시뮬레이션은 정확히 이 두 식을 구현한다.</p>
+    </div>
+
+    <div class="card">
+      <div class="kicker">현상 ② — 학습 시간 축</div>
+      <h2>그로킹(Grokking)</h2>
+      <svg class="svgfig" viewBox="0 0 320 130" role="img" aria-label="그로킹 모식도">
+        <line x1="20" y1="110" x2="305" y2="110" stroke="#D8DECF" stroke-width="1.2"/>
+        <path d="M 30 105 C 45 100, 52 30, 70 22 L 300 20" fill="none" stroke="#3E6B8C" stroke-width="2.4"/>
+        <path d="M 30 106 L 195 103 C 215 100, 222 30, 240 22 L 300 21" fill="none" stroke="#C2452D" stroke-width="2.4"/>
+        <text x="120" y="95" font-size="10.5" fill="#8E9A88" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">암기 상태가 길게 지속</text>
+        <line x1="228" y1="12" x2="228" y2="110" stroke="#C99227" stroke-width="1.3" stroke-dasharray="4 3"/>
+        <text x="228" y="124" font-size="10.5" fill="#C99227" text-anchor="middle" font-family="IBM Plex Sans KR,sans-serif">그로킹</text>
+        <text x="62" y="14" font-size="10.5" fill="#3E6B8C" font-weight="700" font-family="IBM Plex Sans KR,sans-serif">훈련 정확도</text>
+        <text x="298" y="40" font-size="10.5" fill="#C2452D" font-weight="700" text-anchor="end" font-family="IBM Plex Sans KR,sans-serif">테스트 정확도</text>
+      </svg>
+      <p>작은 신경망에 <span class="math">a + b mod p</span> 같은 단순 연산을 학습시키면, <b>훈련 정확도는 순식간에 100%</b>가 된다 — 답을 전부 외운 것이다. 그런데 테스트 정확도는 찍기 수준에 한참 머물다가, 수천~수만 스텝 뒤 <b>갑자기 100%로 점프</b>한다. 암기에서 이해로 넘어가는 순간이 그래프에 그대로 찍힌다.</p>
+      <h3>왜 깨달음은 불연속인가</h3>
+      <p>네트워크 안에서는 두 종류의 해가 경쟁한다. <b>암기 회로</b>는 빨리 만들어지지만 가중치가 크고 복잡하다. <b>일반화 회로</b>(모듈러 덧셈의 경우 푸리에 주기 구조)는 느리게 자라지만 가중치가 작고 단순하다. 가중치 감쇠(weight decay)는 매 스텝 모든 가중치에 ‘크기 세금’을 매기므로, 시간이 지날수록 비싼 암기 회로가 침식되고 값싼 일반화 회로가 살아남는다. 겉으로 보이는 정확도는 두 회로의 세력이 역전되는 순간 계단처럼 점프한다.</p>
+      <h3>weight decay가 0이라면?</h3>
+      <p>암기 회로를 허물 압력이 없으므로 <b>그로킹은 영원히 오지 않는다</b>. 03번 탭에 이 대조 실험이 원클릭 프리셋으로 들어 있다 — 직접 확인할 수 있다.</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="kicker">두 현상의 연결</div>
+    <h2>같은 이야기의 두 단면 — 그리고 30%의 해석</h2>
+    <p>Nakkiran 등(2019)은 더블 디센트가 모델 크기 축뿐 아니라 <b>학습 시간(epoch) 축에서도</b> 나타남을 보였다. 모델을 키우는 대신 오래 학습시켜도 “나빠졌다가 다시 좋아지는” 같은 곡선이 나온다. 그로킹은 이 epoch축 현상의 극단적인 형태로 볼 수 있다 — 두 실험은 결국 <b>“과잉 용량 + 정규화 압력이 단순한 해를 찾아내는 과정”</b>이라는 하나의 이야기를 모델 크기와 학습 시간이라는 두 단면에서 자른 것이다.</p>
+    <h3>교과서는 틀리지 않았다 — 적용 범위가 있었다</h3>
+    <p>02번 탭의 결과를 보면, <b><span class="math">P&lt;N</span>인 고전 영역 안에서는 편향–분산 트레이드오프가 정확히 성립한다.</b> 복잡도를 올리면 훈련 오차는 줄고 테스트 오차는 결국 나빠진다 — 교과서 그대로다. 교과서의 U자는 ‘틀린 그림’이 아니라 ‘전체 그림의 왼쪽 절반’이었던 셈이다. 뉴턴 역학이 광속 근처에서 상대성이론에 자리를 내주듯, 고전 통계학의 직관은 보간 임계점이라는 경계 안에서 유효한 근사였다.</p>
+    <p>사람의 공부에 빗대면 — 시험 전날의 벼락치기 암기는 훈련 정확도 100%의 암기 회로다. 그로킹 실험이 보여주는 것은, 그 암기 상태에서도 ‘더 단순한 설명을 찾으려는 압력’이 계속 작동하면 어느 순간 원리 이해로 상전이가 일어난다는 것이다. 깨달음이 점진적이지 않고 불연속적으로 온다는 경험적 직관이, 가장 작은 신경망에서 수치로 재현된다.</p>
+  </div>
+
+  <div class="card">
+    <div class="kicker">참고문헌</div>
+    <h2>이 실험이 딛고 선 논문 다섯 편</h2>
+    <div class="refs">
+      <div class="ref"><div class="who">Belkin, Hsu, Ma &amp; Mandal (2019)</div><div class="where">PNAS 116(32)</div><div class="what">‘double descent’라는 용어를 만든 원조 논문. 랜덤 푸리에 특징(RFF)으로 봉우리를 처음 깔끔하게 보였다. 02번 탭은 이 실험의 축소판이다.</div></div>
+      <div class="ref"><div class="who">Mei &amp; Montanari (2022)</div><div class="where">Comm. Pure Appl. Math. 75(4)</div><div class="what">RFF 회귀의 더블 디센트를 수학적으로 정밀 분석. 봉우리가 정확히 P/N=1에서 생김을 증명 — 02번 탭의 금색 점선 위치가 이 논문의 예측이다.</div></div>
+      <div class="ref"><div class="who">Nakkiran et al. (2019)</div><div class="where">ICLR 2020</div><div class="what">실제 딥러닝(ResNet)에서 모델 크기뿐 아니라 학습 시간 축으로도 더블 디센트가 나타남을 보임. 02번과 03번 탭을 잇는 다리.</div></div>
+      <div class="ref"><div class="who">Power et al. (2022)</div><div class="where">arXiv:2201.02177 (OpenAI)</div><div class="what">그로킹 현상의 발견 논문. 작은 트랜스포머가 모듈러 연산을 암기한 뒤 한참 지나 갑자기 일반화함을 보고했다.</div></div>
+      <div class="ref"><div class="who">Gromov (2023)</div><div class="where">arXiv:2301.02679</div><div class="what">트랜스포머 없이 2층 MLP(제곱 활성화)만으로 모듈러 덧셈 그로킹을 재현하고 해석적 해를 제시. 03번 탭의 모델 구조가 이 세팅의 축소판이다.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TAB 2 : DOUBLE DESCENT ================= -->
+<section class="panel" id="t2">
+  <div class="card">
+    <div class="kicker">실험 ① — 모델 크기 축</div>
+    <h2>파라미터 수 P를 키우며 테스트 오차를 측정한다</h2>
+    <p>데이터: <span class="math">x ∈ ℝ<sup>D</sup></span> (기본 D=15)에서 <span class="math">y = w*·x + ε</span> (잡음 ε ~ N(0, σ²))를 <span class="math">N</span>개 생성. 모델: 랜덤 푸리에 특징 <span class="math">φ<sub>j</sub>(x) = √(2/P)·cos(v<sub>j</sub>·x + b<sub>j</sub>)</span> 위의 선형회귀. <span class="math">P&lt;N</span>에서는 최소제곱해, <span class="math">P≥N</span>에서는 <b>최소 노름 보간해</b>를 푼다. 각 P마다 여러 번 시행해 중앙값을 찍는다.</p>
+    <p class="note">▶ 실행을 누르면 P=2부터 P=8N까지 왼쪽에서 오른쪽으로 차례로 계산되며 곡선이 자라난다. 잡음 σ를 0으로 내리면 봉우리가 사라지고, 고급 변수에서 릿지 λ를 켜면 봉우리가 길들여지고, 차원 D를 2로 내리면 임계점 자체가 실종된다 — 전부 프리셋 원클릭으로 확인할 수 있다.</p>
+  </div>
+
+  <div class="labrow">
+    <div class="controls">
+      <h3>SIMULATION CONTROLS</h3>
+      <div class="ctl"><label>훈련 데이터 수 N <span class="val" id="ddNv">150</span></label><input type="range" id="ddN" min="60" max="200" step="10" value="150"></div>
+      <div class="ctl"><label>라벨 잡음 σ <span class="val" id="ddNoiseV">0.25</span></label><input type="range" id="ddNoise" min="0" max="0.6" step="0.05" value="0.25"></div>
+      <div class="ctl"><label>시행 횟수 (중앙값) <span class="val" id="ddTrialsV">8</span></label><input type="range" id="ddTrials" min="2" max="20" step="1" value="8"></div>
+      <details class="adv">
+        <summary>고급 변수</summary>
+        <div class="ctl"><label>입력 차원 D <span class="val" id="ddDv">15</span></label><input type="range" id="ddD" min="2" max="30" step="1" value="15"></div>
+        <div class="ctl"><label>특징 대역폭 γ <span class="val" id="ddGv">0.40</span></label><input type="range" id="ddG" min="0.2" max="1.2" step="0.05" value="0.4"></div>
+        <div class="ctl"><label>릿지 정규화 λ<select id="ddRidge"><option value="0" selected>0 (없음)</option><option value="0.0001">10⁻⁴</option><option value="0.001">10⁻³</option><option value="0.01">10⁻²</option><option value="0.1">10⁻¹</option></select></label></div>
+        <div class="ctl"><label>랜덤 특징 종류<select id="ddFeat"><option value="cos" selected>cos — 푸리에 (Belkin 2019)</option><option value="relu">ReLU — 신경망형</option></select></label></div>
+        <div class="ctl"><label>P 스윕 범위<select id="ddRange"><option value="4">2 ~ 4N</option><option value="8" selected>2 ~ 8N</option><option value="16">2 ~ 16N (느림)</option></select></label></div>
+      </details>
+      <div class="btns">
+        <button class="act" id="ddRun">▶ 실행</button>
+        <button class="act ghostbtn" id="ddStop" disabled>중지</button>
+      </div>
+      <div class="progress"><i id="ddProg"></i></div>
+      <div class="presets">
+        <div class="pt">ABLATION PRESETS</div>
+        <button class="preset" data-dd="base"><b>기본 — 더블 디센트</b><span>σ=0.25 · 봉우리와 재하강이 모두 보임</span></button>
+        <button class="preset" data-dd="nonoise"><b>잡음 제거 — 봉우리 소멸</b><span>σ=0 · 폭발할 잡음이 없으면 임계점이 조용하다</span></button>
+        <button class="preset" data-dd="loudnoise"><b>잡음 증폭 — 봉우리 폭발</b><span>σ=0.5 · 봉우리를 만드는 원인이 잡음임을 확인</span></button>
+        <button class="preset" data-dd="ridge"><b>릿지 정규화 — 봉우리 길들이기</b><span>λ=10⁻³ · 명시적 정규화는 더블 디센트를 지운다</span></button>
+        <button class="preset" data-dd="lowdim"><b>저차원 D=2 — 임계점 실종</b><span>차원이 낮으면 봉우리가 서지 못한다 (조건 ②)</span></button>
+        <button class="preset" data-dd="widegamma"><b>γ=1.0 — 재하강 실패</b><span>봉우리는 폭발하지만 두 번째 하강이 오지 않는다</span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="chartcard">
+        <div class="charthead"><span class="t">테스트 MSE vs 파라미터 수 P</span><span class="s" id="ddSub">대기 중 — ▶ 실행</span></div>
+        <canvas id="ddChart" height="380" aria-label="더블 디센트 곡선"></canvas>
+        <div class="chips" id="ddChips"></div>
+        <div class="legendnote">금색 점선 = 보간 임계점 P=N (Mei &amp; Montanari 2022의 예측 위치). 회녹색 점선 = 교과서가 예측하는 모식 U자.</div>
+        <div class="readout">
+          <div class="ro"><div class="k">고전 영역 최저 (P&lt;N)</div><div class="v" id="ddUnder">—</div></div>
+          <div class="ro"><div class="k">봉우리 (P≈N)</div><div class="v" id="ddPeak">—</div></div>
+          <div class="ro"><div class="k">현대 영역 최저 (P&gt;N)</div><div class="v" id="ddOver">—</div></div>
+          <div class="ro"><div class="k">판정</div><div class="v" id="ddVerdict" style="font-size:13.5px">—</div></div>
+        </div>
+        <div class="findings" id="ddFind">곡선이 완성되면 세 영역의 수치 비교와 판정이 여기에 정리된다.</div>
+      </div>
+
+      <div class="card" style="margin-top:18px">
+        <h3 style="margin-top:0">봉우리가 생기기 위한 세 가지 결정 조건</h3>
+        <div class="cond">
+          <div class="c"><b>① 라벨 잡음 σ &gt; 0</b><span>임계점에서 폭발하는 것은 잡음이다. 잡음이 없으면 꿰뚫을 ‘틀린 점’이 없어 봉우리가 서지 않는다. (σ=0 프리셋으로 확인)</span></div>
+          <div class="c"><b>② 고차원 입력 (D=15)</b><span>1차원 다항회귀에선 Vandermonde 행렬의 조건수가 폭주해 재하강이 부동소수점 오차에 묻힌다. 차원을 올려야 임계점이 칼처럼 선다.</span></div>
+          <div class="c"><b>③ 최소 노름 보간해</b><span>P≥N에서 무수한 보간해 중 가장 매끄러운 해 β̂=Φ<sup>T</sup>(ΦΦ<sup>T</sup>)⁻¹y를 골라야 재하강이 나타난다. 더블 디센트의 수학적 심장.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ================= TAB 3 : GROKKING ================= -->
+<section class="panel" id="t3">
+  <div class="card">
+    <div class="kicker">실험 ② — 학습 시간 축</div>
+    <h2>모듈러 덧셈 a + b (mod p)를 신경망에 가르친다</h2>
+    <p>과제: <span class="math">p²</span>개의 모든 (a,b) 쌍 중 일부만 훈련에 주고 나머지로 시험한다. 모델: 2층 MLP — 원-핫 입력 <span class="math">2p</span>차원 → 은닉층(기본 96, 활성화 기본 <span class="math">φ(h)=h²</span>, Gromov 2023) → 출력 <span class="math">p</span>차원. 학습: 전체 배치 AdamW(기본 lr 0.01) + <b>가중치 감쇠</b>, MSE 손실. 20스텝마다 훈련/테스트 정확도를 기록한다.</p>
+    <p class="note">▶ 학습 시작을 누르면 실시간으로 훈련이 진행된다. 훈련 정확도(파랑)가 100%에 닿은 뒤에도 테스트(빨강)가 바닥을 기는 긴 플래토를 그대로 지켜보라 — 그리고 점프의 순간을.</p>
+  </div>
+
+  <div class="labrow">
+    <div class="controls">
+      <h3>TRAINING CONTROLS</h3>
+      <div class="ctl"><label>가중치 감쇠 λ <span class="val" id="gkWdV">1.0</span></label><input type="range" id="gkWd" min="0" max="2" step="0.1" value="1"></div>
+      <div class="ctl"><label>훈련 데이터 비율 <span class="val" id="gkFracV">50%</span></label><input type="range" id="gkFrac" min="0.2" max="0.8" step="0.05" value="0.5"></div>
+      <div class="ctl"><label>모듈러 p<select id="gkP"><option value="11">p = 11 (121쌍)</option><option value="17" selected>p = 17 (289쌍)</option><option value="23">p = 23 (529쌍)</option></select></label></div>
+      <details class="adv">
+        <summary>고급 변수</summary>
+        <div class="ctl"><label>학습 과제 (연산)<select id="gkOp"><option value="add" selected>a + b (mod p)</option><option value="sub">a − b (mod p)</option><option value="mul">a × b (mod p)</option></select></label></div>
+        <div class="ctl"><label>활성화 함수<select id="gkAct"><option value="quad" selected>φ(h) = h² (Gromov 2023)</option><option value="relu">ReLU — 비교용</option></select></label></div>
+        <div class="ctl"><label>은닉층 너비<select id="gkWidth"><option value="32">32 (좁음)</option><option value="48">48</option><option value="96" selected>96 (기본)</option><option value="192">192 (넓음)</option></select></label></div>
+        <div class="ctl"><label>학습률 lr<select id="gkLr"><option value="0.003">0.003 (느림)</option><option value="0.01" selected>0.01 (기본)</option><option value="0.03">0.03 (빠름)</option></select></label></div>
+      </details>
+      <div class="ctl"><label>난수 시드<input type="number" id="gkSeed" value="0" min="0" max="999"></label></div>
+      <div class="ctl"><label>재생 속도<select id="gkSpeed"><option value="2">1× (느리게 관찰)</option><option value="8" selected>4× (기본)</option><option value="32">16× (빠르게)</option></select></label></div>
+      <div class="btns">
+        <button class="act" id="gkRun">▶ 학습 시작</button>
+        <button class="act ghostbtn" id="gkPause" disabled>일시정지</button>
+        <button class="act ghostbtn" id="gkReset">리셋</button>
+      </div>
+      <div class="presets">
+        <div class="pt">ABLATION PRESETS</div>
+        <button class="preset" data-gk="base"><b>기본 — 그로킹 발생</b><span>λ=1.0, 50% · 암기 → 긴 플래토 → 점프</span></button>
+        <button class="preset" data-gk="nowd"><b>weight decay 0 — 영원한 암기</b><span>λ=0 · 암기 회로를 허물 압력이 없다</span></button>
+        <button class="preset" data-gk="lowdata"><b>데이터 30% — 그로킹 실패</b><span>훈련 쌍이 너무 적으면 일반화 회로가 서지 못한다</span></button>
+        <button class="preset" data-gk="mul"><b>곱셈 과제 — 다른 연산도 그로킹</b><span>a×b mod p · 같은 드라마가 다른 무대에서 반복된다</span></button>
+        <button class="preset" data-gk="relu"><b>ReLU 활성화 — h²와의 비교</b><span>같은 스텝 예산에서 점프가 오지 않는다 (왜일까?)</span></button>
+      </div>
+    </div>
+
+    <div>
+      <div class="chartcard">
+        <div class="charthead"><span class="t" id="gkTitle">정확도 vs 학습 스텝 (로그 축)</span><span class="s" id="gkSub">대기 중 — ▶ 학습 시작</span></div>
+        <canvas id="gkChart" height="380" aria-label="그로킹 학습 곡선"></canvas>
+        <div class="chips" id="gkChips"></div>
+        <div class="legendnote">회녹색 점선 = 교과서가 예측하는 모습(테스트가 훈련을 곧바로 뒤따름). 금색 점선 = 자동 감지된 암기 완료·그로킹 시점.</div>
+        <div class="statusline">
+          <span class="badge" id="gkBadge">대기</span>
+          <span class="s" style="font-family:var(--mono);font-size:12.5px;color:var(--muted)" id="gkStat">step 0 · 훈련 — · 테스트 —</span>
+        </div>
+        <div class="readout">
+          <div class="ro"><div class="k">암기 완료 (훈련 100%)</div><div class="v" id="gkMemo">—</div></div>
+          <div class="ro"><div class="k">그로킹 (테스트 ≥ 95%)</div><div class="v" id="gkGrok">—</div></div>
+          <div class="ro"><div class="k">플래토 길이</div><div class="v" id="gkGap">—</div></div>
+          <div class="ro"><div class="k">데이터</div><div class="v" id="gkData">—</div></div>
+        </div>
+        <div class="findings" id="gkFind">암기 시점과 그로킹 시점이 자동으로 감지되어 여기에 기록된다. λ=0 프리셋과 비교해 보라.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  재현 명세 (v2) — ① 더블 디센트: 랜덤 특징 회귀 (기본 D=15, γ=0.4, cos/ReLU 선택, 릿지 λ 선택, 시험점 300개), P&lt;N 최소제곱 / P≥N 최소 노름 보간 (Belkin et al. 2019 축소판) ·
+  ② 그로킹: 2층 MLP (활성화 h²/ReLU, 너비 32–192, 연산 +/−/× mod p 선택), 전체 배치 AdamW lr 0.003–0.03, MSE (Gromov 2023 축소판) ·
+  모든 수치는 이 브라우저에서 mulberry32 시드 난수로 계산됨 — 외부 데이터·서버 없음. AI기초 심화 탐구용 제작.
+</footer>
+</div>
+
+<script>
+'use strict';
+/* ============ RNG ============ */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;}}
+function gaussOf(rng){let u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+
+/* ============ Tabs ============ */
+document.querySelectorAll('.tab').forEach(b=>{
+  b.addEventListener('click',()=>{
+    document.querySelectorAll('.tab').forEach(x=>x.classList.remove('on'));
+    document.querySelectorAll('.panel').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    document.getElementById(b.dataset.tab).classList.add('on');
+    if(b.dataset.tab==='t2') ddPlot.draw();
+    if(b.dataset.tab==='t3') gkPlot.draw();
+  });
+});
+
+/* ============ Canvas line plot ============ */
+function LinePlot(canvas,opts){
+  const ctx=canvas.getContext('2d');
+  const o=Object.assign({xlog:true,ylog:false,xlabel:'',ylabel:'',padL:62,padR:16,padT:18,padB:42,yClampMin:1e-6},opts||{});
+  let series=[],vlines=[],annos=[];
+  function sizeUp(){
+    const r=canvas.getBoundingClientRect();
+    const dpr=window.devicePixelRatio||1;
+    const w=Math.max(280,r.width), h=Math.min(440,Math.max(280,r.width*0.52));
+    canvas.style.height=h+'px';
+    canvas.width=Math.round(w*dpr); canvas.height=Math.round(h*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {w,h};
+  }
+  function tx(v,xmin,xmax,W){ if(o.xlog){return o.padL+(Math.log10(v)-Math.log10(xmin))/(Math.log10(xmax)-Math.log10(xmin))*(W-o.padL-o.padR);} return o.padL+(v-xmin)/(xmax-xmin)*(W-o.padL-o.padR); }
+  function ty(v,ymin,ymax,H){ if(o.ylog){v=Math.max(v,o.yClampMin);return H-o.padB-(Math.log10(v)-Math.log10(ymin))/(Math.log10(ymax)-Math.log10(ymin))*(H-o.padT-o.padB);} return H-o.padB-(v-ymin)/(ymax-ymin)*(H-o.padT-o.padB); }
+  function niceLinTicks(mn,mx){
+    const span=mx-mn||1, step0=Math.pow(10,Math.floor(Math.log10(span/5)));
+    let step=step0; for(const m of [1,2,2.5,5,10]){ if(span/(step0*m)<=6){step=step0*m;break;} }
+    const t=[]; for(let v=Math.ceil(mn/step)*step; v<=mx+1e-12; v+=step) t.push(+v.toFixed(10));
+    return t;
+  }
+  function logTicks(mn,mx){
+    const t=[]; const lo=Math.floor(Math.log10(mn)), hi=Math.ceil(Math.log10(mx));
+    for(let e=lo;e<=hi;e++){ for(const m of [1,2,5]){ const v=m*Math.pow(10,e); if(v>=mn*0.999&&v<=mx*1.001) t.push(v);} }
+    return t;
+  }
+  function fmt(v){ if(v===0)return '0'; const a=Math.abs(v);
+    if(a>=10000||a<0.001) return v.toExponential(0).replace('e+','e');
+    if(a>=100) return String(Math.round(v));
+    if(a>=1) return (Math.round(v*100)/100).toString();
+    return (Math.round(v*1000)/1000).toString(); }
+  function draw(){
+    const {w:W,h:H}=sizeUp();
+    ctx.clearRect(0,0,W,H);
+    const vis=series.filter(s=>s.on&&s.x.length);
+    let xmin=Infinity,xmax=-Infinity,ymin=Infinity,ymax=-Infinity;
+    for(const s of vis){ for(let i=0;i<s.x.length;i++){ const xv=s.x[i]; let yv=s.y[i];
+      if(o.ylog) yv=Math.max(yv,o.yClampMin);
+      if(xv<xmin)xmin=xv; if(xv>xmax)xmax=xv; if(yv<ymin)ymin=yv; if(yv>ymax)ymax=yv; } }
+    for(const vl of vlines){ if(vl.x<xmin)xmin=vl.x; if(vl.x>xmax)xmax=vl.x; }
+    if(!isFinite(xmin)){ xmin=1;xmax=10;ymin=o.ylog?0.01:0;ymax=o.ylog?10:1; }
+    if(o.fixedY){ ymin=o.fixedY[0]; ymax=o.fixedY[1]; }
+    else if(o.ylog){ ymin=Math.max(ymin/1.6,o.yClampMin); ymax=ymax*1.6; if(ymin===ymax){ymin/=10;ymax*=10;} }
+    else { const m=(ymax-ymin)*0.08||1; ymin-=m; ymax+=m; }
+    if(o.xlog){ xmin=Math.max(xmin,0.5); if(xmin===xmax)xmax=xmin*10; }
+    else if(xmin===xmax){xmax=xmin+1;}
+    // frame + gridlines
+    ctx.font='11px "IBM Plex Mono",monospace'; ctx.fillStyle='#8E9A88'; ctx.strokeStyle='#ECEFE5'; ctx.lineWidth=1;
+    const yt=o.ylog?logTicks(ymin,ymax):niceLinTicks(ymin,ymax);
+    for(const v of yt){ const y=ty(v,ymin,ymax,H);
+      ctx.beginPath();ctx.moveTo(o.padL,y);ctx.lineTo(W-o.padR,y);ctx.stroke();
+      ctx.textAlign='right'; ctx.fillText(fmt(v),o.padL-8,y+3.5); }
+    const xt=o.xlog?logTicks(xmin,xmax):niceLinTicks(xmin,xmax);
+    for(const v of xt){ const x=tx(v,xmin,xmax,W);
+      ctx.beginPath();ctx.moveTo(x,o.padT);ctx.lineTo(x,H-o.padB);ctx.stroke();
+      ctx.textAlign='center'; ctx.fillText(fmt(v),x,H-o.padB+16); }
+    ctx.strokeStyle='#C9D1BD'; ctx.lineWidth=1.4;
+    ctx.strokeRect(o.padL,o.padT,W-o.padL-o.padR,H-o.padT-o.padB);
+    // axis labels
+    ctx.fillStyle='#66735F'; ctx.font='12px "IBM Plex Sans KR",sans-serif'; ctx.textAlign='center';
+    ctx.fillText(o.xlabel,(o.padL+W-o.padR)/2,H-8);
+    ctx.save(); ctx.translate(14,(o.padT+H-o.padB)/2); ctx.rotate(-Math.PI/2); ctx.fillText(o.ylabel,0,0); ctx.restore();
+    // vlines
+    for(const vl of vlines){ const x=tx(vl.x,xmin,xmax,W);
+      ctx.strokeStyle=vl.color||'#C99227'; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
+      ctx.beginPath();ctx.moveTo(x,o.padT);ctx.lineTo(x,H-o.padB);ctx.stroke(); ctx.setLineDash([]);
+      if(vl.label){ ctx.fillStyle=vl.color||'#C99227'; ctx.font='11.5px "IBM Plex Sans KR",sans-serif';
+        ctx.textAlign=vl.align||'center'; ctx.fillText(vl.label,x+(vl.dx||0),o.padT+12+(vl.dy||0)); } }
+    // series
+    for(const s of vis){
+      ctx.strokeStyle=s.color; ctx.lineWidth=s.widthPx||2.3;
+      ctx.setLineDash(s.dash||[]);
+      ctx.beginPath(); let started=false;
+      for(let i=0;i<s.x.length;i++){
+        const x=tx(s.x[i],xmin,xmax,W), y=ty(s.y[i],ymin,ymax,H);
+        if(!started){ctx.moveTo(x,y);started=true;} else ctx.lineTo(x,y);
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+      if(s.dots){ ctx.fillStyle=s.color;
+        for(let i=0;i<s.x.length;i++){ const x=tx(s.x[i],xmin,xmax,W),y=ty(s.y[i],ymin,ymax,H);
+          ctx.beginPath();ctx.arc(x,y,2.5,0,Math.PI*2);ctx.fill(); } }
+    }
+    // annotations
+    ctx.font='11.5px "IBM Plex Sans KR",sans-serif';
+    for(const a of annos){ const x=tx(a.x,xmin,xmax,W), y=ty(a.y,ymin,ymax,H);
+      ctx.fillStyle=a.color||'#66735F'; ctx.textAlign=a.align||'left';
+      ctx.fillText(a.text,x+(a.dx||0),y+(a.dy||0)); }
+  }
+  window.addEventListener('resize',()=>draw());
+  return {
+    draw, ctx,
+    set series(s){series=s;}, get series(){return series;},
+    set vlines(v){vlines=v;}, set annos(a){annos=a;},
+    set xlog(v){o.xlog=v;}, get xlog(){return o.xlog;},
+    set ylog(v){o.ylog=v;}, get ylog(){return o.ylog;},
+    set fixedY(v){o.fixedY=v;}, set ylabel(v){o.ylabel=v;}
+  };
+}
+function makeChips(holder,defs,onToggle){
+  holder.innerHTML='';
+  defs.forEach(d=>{
+    const b=document.createElement('button');
+    b.className='chip'+(d.on?' on':' off');
+    b.style.color=d.color||'var(--muted)';
+    b.innerHTML='<span class="dot" style="background:'+(d.color||'#9AA89B')+'"></span>'+d.label;
+    b.addEventListener('click',()=>{ d.on=!d.on; b.classList.toggle('on',d.on); b.classList.toggle('off',!d.on); onToggle(d); });
+    holder.appendChild(b);
+  });
+}
+
+/* =====================================================
+   DOUBLE DESCENT
+===================================================== */
+const DD={D:15,gamma:0.4,nTest:300,running:false,abort:false,
+  results:[], // {P, te(median), tr(mean)}
+};
+function solveSym(A,b,n){
+  const x=Float64Array.from(b);
+  for(let c=0;c<n;c++){
+    let piv=c,mx=Math.abs(A[c*n+c]);
+    for(let r=c+1;r<n;r++){const v=Math.abs(A[r*n+c]);if(v>mx){mx=v;piv=r;}}
+    if(piv!==c){for(let j=0;j<n;j++){const t=A[c*n+j];A[c*n+j]=A[piv*n+j];A[piv*n+j]=t;}const t=x[c];x[c]=x[piv];x[piv]=t;}
+    const d=A[c*n+c]||1e-300;
+    for(let r=c+1;r<n;r++){const f=A[r*n+c]/d;if(f===0)continue;for(let j=c;j<n;j++)A[r*n+j]-=f*A[c*n+j];x[r]-=f*x[c];}
+  }
+  for(let r=n-1;r>=0;r--){let s=x[r];for(let j=r+1;j<n;j++)s-=A[r*n+j]*x[j];x[r]=s/(A[r*n+r]||1e-300);}
+  return x;
+}
+function ddFit(N,P,noise,seed,cfg){
+  const D=cfg.D, nTest=DD.nTest, gamma=cfg.gamma, ridge=cfg.ridge, feat=cfg.feat;
+  const rng=mulberry32(seed*104729+P*31+7);
+  const w=new Float64Array(D);let nm=0;
+  for(let i=0;i<D;i++){w[i]=gaussOf(rng);nm+=w[i]*w[i];}nm=Math.sqrt(nm);
+  for(let i=0;i<D;i++)w[i]/=nm;
+  const X=new Float64Array(N*D),y=new Float64Array(N);
+  for(let i=0;i<N;i++){let s=0;for(let j=0;j<D;j++){const v=gaussOf(rng);X[i*D+j]=v;s+=v*w[j];}y[i]=s+noise*gaussOf(rng);}
+  const Xt=new Float64Array(nTest*D),yt=new Float64Array(nTest);
+  for(let i=0;i<nTest;i++){let s=0;for(let j=0;j<D;j++){const v=gaussOf(rng);Xt[i*D+j]=v;s+=v*w[j];}yt[i]=s;}
+  const V=new Float64Array(D*P),bb=new Float64Array(P);
+  for(let i=0;i<V.length;i++)V[i]=gamma*gaussOf(rng);
+  for(let i=0;i<P;i++)bb[i]=feat==='cos'?rng()*2*Math.PI:gaussOf(rng)*0.5;
+  const sc=Math.sqrt(2/P);
+  function feats(Xm,n){const F=new Float64Array(n*P);
+    for(let i=0;i<n;i++){const xo=i*D,fo=i*P;
+      for(let j=0;j<P;j++){let s=bb[j];for(let k=0;k<D;k++)s+=Xm[xo+k]*V[k*P+j];
+        F[fo+j]=feat==='cos'?sc*Math.cos(s):sc*Math.max(0,s);}}
+    return F;}
+  const Phi=feats(X,N), Phit=feats(Xt,nTest);
+  const eps=Math.max(ridge,1e-8); let beta;
+  if(P<N){
+    const G=new Float64Array(P*P);
+    for(let i=0;i<N;i++){const fo=i*P;for(let a=0;a<P;a++){const fa=Phi[fo+a];const go=a*P;for(let c=a;c<P;c++)G[go+c]+=fa*Phi[fo+c];}}
+    for(let a=0;a<P;a++){for(let c=a+1;c<P;c++)G[c*P+a]=G[a*P+c];G[a*P+a]+=eps*N;}
+    const rhs=new Float64Array(P);
+    for(let i=0;i<N;i++){const fo=i*P;for(let a=0;a<P;a++)rhs[a]+=Phi[fo+a]*y[i];}
+    beta=solveSym(G,rhs,P);
+  } else {
+    const K=new Float64Array(N*N);
+    for(let i=0;i<N;i++)for(let j=i;j<N;j++){let s=0;const fi=i*P,fj=j*P;for(let a=0;a<P;a++)s+=Phi[fi+a]*Phi[fj+a];K[i*N+j]=s;K[j*N+i]=s;}
+    for(let i=0;i<N;i++)K[i*N+i]+=eps*N;
+    const alpha=solveSym(K,y,N);
+    beta=new Float64Array(P);
+    for(let i=0;i<N;i++){const fo=i*P,a=alpha[i];for(let c=0;c<P;c++)beta[c]+=Phi[fo+c]*a;}
+  }
+  let trM=0;for(let i=0;i<N;i++){let s=0;const fo=i*P;for(let a=0;a<P;a++)s+=Phi[fo+a]*beta[a];const d=s-y[i];trM+=d*d;}trM/=N;
+  let teM=0;for(let i=0;i<nTest;i++){let s=0;const fo=i*P;for(let a=0;a<P;a++)s+=Phit[fo+a]*beta[a];const d=s-yt[i];teM+=d*d;}teM/=nTest;
+  return {trM,teM};
+}
+function ddPlist(N,mult){
+  const s=new Set();
+  const a=Math.log10(2), b=Math.log10(mult*N);
+  const npts=mult>=16?28:24;
+  for(let i=0;i<npts;i++) s.add(Math.round(Math.pow(10,a+(b-a)*i/(npts-1))));
+  [N-5,N-2,N-1,N,N+1,N+2,N+5,N+12].forEach(v=>{if(v>=2)s.add(v);});
+  return [...s].sort((x,y)=>x-y);
+}
+const ddPlot=LinePlot(document.getElementById('ddChart'),{xlog:true,ylog:true,xlabel:'파라미터 수 P (로그)',ylabel:'MSE (로그)',yClampMin:1e-6});
+const ddSeries={
+  test:{label:'테스트 오차',color:'#C2452D',x:[],y:[],on:true,dots:true,widthPx:2.6},
+  train:{label:'훈련 오차',color:'#3E6B8C',x:[],y:[],on:true,dots:true,widthPx:2},
+  ghost:{label:'교과서 예측 (모식)',color:'#9AA89B',x:[],y:[],on:true,dash:[6,5],widthPx:2},
+};
+const ddOpt={ylog:{label:'세로 로그 축',color:'#66735F',on:true},xlogc:{label:'가로 로그 축',color:'#66735F',on:true}};
+function ddRedraw(){
+  ddPlot.series=[ddSeries.ghost,ddSeries.train,ddSeries.test];
+  ddPlot.ylog=ddOpt.ylog.on; ddPlot.xlog=ddOpt.xlogc.on;
+  const N=+document.getElementById('ddN').value;
+  ddPlot.vlines=[{x:N,label:'보간 임계점 P=N',color:'#C99227',align:'left',dx:6}];
+  ddPlot.draw();
+}
+makeChips(document.getElementById('ddChips'),
+  [ddSeries.test,ddSeries.train,ddSeries.ghost,ddOpt.ylog,ddOpt.xlogc], ddRedraw);
+function ddGhost(N,under){
+  // schematic textbook U: decreasing then monotone rise past sweet spot
+  const xs=[],ys=[];
+  const y0=under*1.6, ymin=under, rise=under*9;
+  for(let i=0;i<=60;i++){
+    const P=Math.pow(10,Math.log10(2)+(Math.log10(8*N)-Math.log10(2))*i/60);
+    const dec=ymin+(y0-ymin)*Math.exp(-P/(0.18*N));
+    const inc=rise*Math.pow(Math.max(P/N-0.45,0),1.7);
+    xs.push(P); ys.push(dec+inc);
+  }
+  ddSeries.ghost.x=xs; ddSeries.ghost.y=ys;
+}
+async function ddRun(){
+  if(DD.running)return;
+  DD.running=true; DD.abort=false;
+  document.getElementById('ddRun').disabled=true;
+  document.getElementById('ddStop').disabled=false;
+  const N=+document.getElementById('ddN').value;
+  const noise=+document.getElementById('ddNoise').value;
+  const trials=+document.getElementById('ddTrials').value;
+  const cfg={D:+document.getElementById('ddD').value,
+             gamma:+document.getElementById('ddG').value,
+             ridge:+document.getElementById('ddRidge').value,
+             feat:document.getElementById('ddFeat').value};
+  const Pl=ddPlist(N,+document.getElementById('ddRange').value);
+  ddSeries.test.x=[];ddSeries.test.y=[];ddSeries.train.x=[];ddSeries.train.y=[];
+  ddSeries.ghost.x=[];ddSeries.ghost.y=[];
+  DD.results=[];
+  const sub=document.getElementById('ddSub'), prog=document.getElementById('ddProg');
+  const total=Pl.length;
+  for(let pi=0;pi<Pl.length;pi++){
+    if(DD.abort)break;
+    const P=Pl[pi];
+    sub.textContent=`계산 중 — P=${P} (${pi+1}/${total}, 시행 ${trials}회)`;
+    const te=[],tr=[];
+    for(let t=0;t<trials;t++){
+      if(DD.abort)break;
+      const r=ddFit(N,P,noise,t,cfg);
+      te.push(r.teM); tr.push(r.trM);
+      await new Promise(res=>setTimeout(res,0));
+    }
+    if(DD.abort)break;
+    te.sort((a,b)=>a-b);
+    const med=te[Math.floor(te.length/2)];
+    const trm=tr.reduce((a,b)=>a+b,0)/tr.length;
+    DD.results.push({P,te:med,tr:trm});
+    ddSeries.test.x.push(P); ddSeries.test.y.push(med);
+    ddSeries.train.x.push(P); ddSeries.train.y.push(Math.max(trm,1e-6));
+    prog.style.width=((pi+1)/total*100).toFixed(1)+'%';
+    if(DD.results.length===6){ // seed the ghost once under-region estimate exists
+      const under=Math.min(...DD.results.map(r=>r.te));
+      ddGhost(N,under);
+    }
+    ddRedraw();
+  }
+  // final readouts
+  if(DD.results.length>4){
+    const under=Math.min(...DD.results.filter(r=>r.P<N*0.8).map(r=>r.te));
+    const peakArr=DD.results.filter(r=>Math.abs(r.P-N)<=Math.max(5,N*0.04)).map(r=>r.te);
+    const peak=peakArr.length?Math.max(...peakArr):NaN;
+    const overArr=DD.results.filter(r=>r.P>2*N).map(r=>r.te);
+    const over=overArr.length?Math.min(...overArr):NaN;
+    ddGhost(N,under);
+    document.getElementById('ddUnder').textContent=under.toFixed(3);
+    document.getElementById('ddPeak').textContent=isNaN(peak)?'—':peak.toFixed(1);
+    document.getElementById('ddOver').textContent=isNaN(over)?'—':over.toFixed(3);
+    const dd = !isNaN(over)&&!isNaN(peak)&&peak>under*3&&over<under;
+    const peakOnly = !dd&&!isNaN(peak)&&peak>under*3;
+    let verdictTxt = dd?'더블 디센트 ✓':(peakOnly?'봉우리만 관찰':'봉우리 없음');
+    if(cfg.ridge>0&&!dd&&!peakOnly) verdictTxt='정규화로 억제됨';
+    if(cfg.D<=4&&!dd) verdictTxt='저차원 — 임계점 미형성';
+    document.getElementById('ddVerdict').textContent=verdictTxt;
+    document.getElementById('ddVerdict').style.color= dd?'var(--ok)':'var(--muted)';
+    let find;
+    if(dd){
+      find=`<b>판정: 더블 디센트 재현.</b> 고전 영역(P&lt;N)에서는 교과서대로 복잡도를 올리면 테스트 오차가 결국 나빠졌고(최저 ${under.toFixed(2)}), 보간 임계점 P=N에서 ${peak.toFixed(0)}까지 폭발했다. 그러나 그 너머에서 오차는 다시 내려가 <b>${over.toFixed(2)} — 고전 영역 최저의 ${(under/over).toFixed(1)}분의 1 수준</b>에 도달했다. 교과서의 U자는 이 곡선의 왼쪽 절반이다.${cfg.feat==='relu'?' (ReLU 랜덤 특징에서도 같은 구조가 나타난다 — 현상이 cos 특징의 우연이 아님을 보여준다.)':''}`;
+    } else if(cfg.ridge>0&&!peakOnly){
+      find=`<b>판정: 정규화가 봉우리를 지웠다 (λ=${cfg.ridge}).</b> 릿지 항은 임계점에서 해가 잡음을 꿰뚫느라 뒤틀리는 것을 막는다. 명시적 정규화가 충분하면 더블 디센트는 관찰되지 않는다 — 봉우리가 ‘정규화의 부재’에서 온다는 것을 보여주는 대조 실험. λ=0으로 되돌려 비교해 보라.`;
+    } else if(noise===0){
+      find=`<b>판정: 봉우리 소멸 (σ=0).</b> 잡음이 없으면 임계점에서 강제로 꿰뚫어야 할 ‘틀린 점’이 없어 폭발이 일어나지 않는다. 봉우리를 만드는 원인이 라벨 잡음임을 확인하는 대조 실험.`;
+    } else if(cfg.D<=4){
+      find=`<b>판정: 저차원에서는 임계점이 서지 못한다 (D=${cfg.D}).</b> 입력 차원이 낮으면 적은 특징만으로도 함수가 거의 복원되어, 임계점의 ‘곡예’가 일어날 무대 자체가 없다. 1차원 다항회귀로 더블 디센트를 보려던 시도가 실패하는 이유 — 조건 ②의 직접 확인. D를 15로 올려 다시 실행해 보라.`;
+    } else if(peakOnly&&cfg.gamma>=0.8){
+      find=`<b>판정: 봉우리는 폭발(${peak.toFixed(0)})했지만 재하강이 오지 않았다 (γ=${cfg.gamma}).</b> 대역폭이 크면 랜덤 특징이 너무 ‘구불구불’해져, 파라미터를 늘려도 매끄러운 최소 노름 해가 목표 함수에 가까워지지 못한다. 더블 디센트의 두 번째 하강은 공짜가 아니라 <b>특징이 문제에 맞을 때</b>만 온다는 것 — 이 시뮬레이션을 만들 때 실제로 부딪힌 함정이기도 하다. γ를 0.4로 되돌려 보라.`;
+    } else if(peakOnly){
+      find=`봉우리(${peak.toFixed(0)})는 관찰됐지만 재하강이 고전 영역 최저(${under.toFixed(2)})를 뚫지 못했다. γ를 0.3~0.5로, D를 10~20으로 조정하거나 스윕 범위를 16N으로 늘려 다시 실행해 보라.`;
+    } else {
+      find=`봉우리/재하강이 약하게 나왔다. 시행 횟수를 늘리거나 σ를 0.25 부근으로 조정해 다시 실행해 보라.`;
+    }
+    document.getElementById('ddFind').innerHTML=find;
+  }
+  sub.textContent=DD.abort?'중지됨':'완료 — 점 하나하나가 이 브라우저에서 푼 회귀 문제다';
+  DD.running=false;
+  document.getElementById('ddRun').disabled=false;
+  document.getElementById('ddStop').disabled=true;
+  ddRedraw();
+}
+document.getElementById('ddRun').addEventListener('click',ddRun);
+document.getElementById('ddStop').addEventListener('click',()=>{DD.abort=true;});
+document.getElementById('ddN').addEventListener('input',e=>{document.getElementById('ddNv').textContent=e.target.value;ddRedraw();});
+document.getElementById('ddNoise').addEventListener('input',e=>{document.getElementById('ddNoiseV').textContent=(+e.target.value).toFixed(2);});
+document.getElementById('ddTrials').addEventListener('input',e=>{document.getElementById('ddTrialsV').textContent=e.target.value;});
+document.getElementById('ddD').addEventListener('input',e=>{document.getElementById('ddDv').textContent=e.target.value;});
+document.getElementById('ddG').addEventListener('input',e=>{document.getElementById('ddGv').textContent=(+e.target.value).toFixed(2);});
+function ddSetDefaults(){
+  const set=(id,v)=>{document.getElementById(id).value=v;};
+  set('ddNoise',0.25);set('ddD',15);set('ddG',0.4);set('ddRidge','0');set('ddFeat','cos');
+  document.getElementById('ddNoiseV').textContent='0.25';
+  document.getElementById('ddDv').textContent='15';
+  document.getElementById('ddGv').textContent='0.40';
+}
+document.querySelectorAll('[data-dd]').forEach(b=>b.addEventListener('click',()=>{
+  const m=b.dataset.dd;
+  ddSetDefaults();
+  if(m==='nonoise'){document.getElementById('ddNoise').value=0;document.getElementById('ddNoiseV').textContent='0.00';}
+  if(m==='loudnoise'){document.getElementById('ddNoise').value=0.5;document.getElementById('ddNoiseV').textContent='0.50';}
+  if(m==='ridge'){document.getElementById('ddRidge').value='0.001';}
+  if(m==='lowdim'){document.getElementById('ddD').value=2;document.getElementById('ddDv').textContent='2';}
+  if(m==='widegamma'){document.getElementById('ddG').value=1.0;document.getElementById('ddGv').textContent='1.00';}
+  if(!DD.running) ddRun();
+}));
+ddRedraw();
+
+/* =====================================================
+   GROKKING
+===================================================== */
+const GK={sim:null,running:false,hist:[],memo:null,grok:null,maxSteps:12000,raf:null};
+function makeGrok(cfg){
+  const {p,width,frac,wd,lr,seed,act,op}=cfg;
+  const rng=mulberry32(seed*7919+1);
+  const nAll=p*p;
+  const A=new Int32Array(nAll),B=new Int32Array(nAll),Lab=new Int32Array(nAll);
+  let k=0;for(let a=0;a<p;a++)for(let b=0;b<p;b++){A[k]=a;B[k]=b;
+    Lab[k]= op==='add'?(a+b)%p : op==='sub'?((a-b)%p+p)%p : (a*b)%p; k++;}
+  const idx=[...Array(nAll).keys()];
+  for(let i=nAll-1;i>0;i--){const j=Math.floor(rng()*(i+1));const t=idx[i];idx[i]=idx[j];idx[j]=t;}
+  const ntr=Math.round(frac*nAll);
+  const din=2*p;
+  function buildX(ids){const X=new Float64Array(ids.length*din);
+    for(let i=0;i<ids.length;i++){X[i*din+A[ids[i]]]=1;X[i*din+p+B[ids[i]]]=1;}return X;}
+  const trIds=idx.slice(0,ntr), teIds=idx.slice(ntr);
+  const Xtr=buildX(trIds), Xte=buildX(teIds);
+  const Ytr=new Float64Array(ntr*p);for(let i=0;i<ntr;i++)Ytr[i*p+Lab[trIds[i]]]=1;
+  const ytr=trIds.map(i=>Lab[i]), yte=teIds.map(i=>Lab[i]);
+  const W1=new Float64Array(din*width),W2=new Float64Array(width*p);
+  for(let i=0;i<W1.length;i++)W1[i]=gaussOf(rng)/Math.sqrt(din);
+  for(let i=0;i<W2.length;i++)W2[i]=gaussOf(rng)/Math.sqrt(width);
+  const mW1=new Float64Array(W1.length),vW1=new Float64Array(W1.length);
+  const mW2=new Float64Array(W2.length),vW2=new Float64Array(W2.length);
+  const H=new Float64Array(ntr*width),Aq=new Float64Array(ntr*width);
+  const Out=new Float64Array(ntr*p),dOut=new Float64Array(ntr*p),dA=new Float64Array(ntr*width);
+  const gW1=new Float64Array(W1.length),gW2=new Float64Array(W2.length);
+  let step=0;
+  function mm(Xm,Wm,Cm,n,m,q){Cm.fill(0);
+    for(let i=0;i<n;i++){const xo=i*m,co=i*q;
+      for(let kk=0;kk<m;kk++){const x=Xm[xo+kk];if(x===0)continue;const wo=kk*q;
+        for(let j=0;j<q;j++)Cm[co+j]+=x*Wm[wo+j];}}}
+  function adamw(W,g,m,v){const b1=0.9,b2=0.98,e=1e-8;
+    const c1=1-Math.pow(b1,step),c2=1-Math.pow(b2,step);
+    for(let i=0;i<W.length;i++){m[i]=b1*m[i]+(1-b1)*g[i];v[i]=b2*v[i]+(1-b2)*g[i]*g[i];
+      W[i]-=lr*((m[i]/c1)/(Math.sqrt(v[i]/c2)+e)+wd*W[i]);}}
+  function trainStep(){
+    step++;
+    mm(Xtr,W1,H,ntr,din,width);
+    if(act==='quad'){for(let i=0;i<H.length;i++)Aq[i]=H[i]*H[i];}
+    else{for(let i=0;i<H.length;i++)Aq[i]=H[i]>0?H[i]:0;}
+    mm(Aq,W2,Out,ntr,width,p);
+    for(let i=0;i<Out.length;i++){dOut[i]=2*(Out[i]-Ytr[i])/ntr;}
+    gW2.fill(0);
+    for(let i=0;i<ntr;i++){const ao=i*width,doo=i*p;
+      for(let kk=0;kk<width;kk++){const a=Aq[ao+kk];if(a===0)continue;const go=kk*p;
+        for(let j=0;j<p;j++)gW2[go+j]+=a*dOut[doo+j];}}
+    for(let i=0;i<ntr;i++){const doo=i*p,ao=i*width;
+      for(let kk=0;kk<width;kk++){let s=0;const wo=kk*p;
+        for(let j=0;j<p;j++)s+=dOut[doo+j]*W2[wo+j];
+        dA[ao+kk]= act==='quad'? s*2*H[ao+kk] : (H[ao+kk]>0?s:0);}}
+    gW1.fill(0);
+    for(let i=0;i<ntr;i++){const xo=i*din,ao=i*width;
+      for(let kk=0;kk<din;kk++){const x=Xtr[xo+kk];if(x===0)continue;const go=kk*width;
+        for(let j=0;j<width;j++)gW1[go+j]+=x*dA[ao+j];}}
+    adamw(W1,gW1,mW1,vW1); adamw(W2,gW2,mW2,vW2);
+  }
+  function evalSet(Xm,n,yv){
+    const Hm=new Float64Array(n*width),Om=new Float64Array(n*p);
+    mm(Xm,W1,Hm,n,din,width);
+    if(act==='quad'){for(let i=0;i<Hm.length;i++)Hm[i]*=Hm[i];}
+    else{for(let i=0;i<Hm.length;i++)Hm[i]=Hm[i]>0?Hm[i]:0;}
+    mm(Hm,W2,Om,n,width,p);
+    let acc=0,loss=0;
+    for(let i=0;i<n;i++){let bi=0,bv=-1e18;
+      for(let j=0;j<p;j++){const o=Om[i*p+j];if(o>bv){bv=o;bi=j;}
+        const t=(j===yv[i])?1:0;loss+=(o-t)*(o-t);}
+      if(bi===yv[i])acc++;}
+    return [acc/n,loss/n];
+  }
+  return {trainStep,
+    evalTrain:()=>evalSet(Xtr,ntr,ytr),
+    evalTest:()=>evalSet(Xte,nAll-ntr,yte),
+    get step(){return step;}, ntr, nte:nAll-ntr, p};
+}
+const gkPlot=LinePlot(document.getElementById('gkChart'),{xlog:true,ylog:false,xlabel:'학습 스텝 (로그)',ylabel:'정확도 (%)'});
+gkPlot.fixedY=[0,104];
+const gkSeries={
+  tr:{label:'훈련 정확도',color:'#3E6B8C',x:[],y:[],on:true,widthPx:2.4},
+  te:{label:'테스트 정확도',color:'#C2452D',x:[],y:[],on:true,widthPx:2.7},
+  ghost:{label:'교과서 예측 (모식)',color:'#9AA89B',x:[],y:[],on:true,dash:[6,5],widthPx:2},
+};
+const gkOpt={xlogc:{label:'가로 로그 축',color:'#66735F',on:true},
+             loss:{label:'손실 곡선 보기',color:'#66735F',on:false}};
+const gkLossSeries={
+  tr:{label:'훈련 손실',color:'#3E6B8C',x:[],y:[],on:true,widthPx:2.2},
+  te:{label:'테스트 손실',color:'#C2452D',x:[],y:[],on:true,widthPx:2.5},
+};
+function gkRedraw(){
+  const lossMode=gkOpt.loss.on;
+  if(lossMode){
+    gkPlot.series=[gkLossSeries.tr,gkLossSeries.te];
+    gkPlot.ylog=true; gkPlot.fixedY=null; gkPlot.ylabel='MSE 손실 (로그)';
+    document.getElementById('gkTitle').textContent='손실 vs 학습 스텝';
+  } else {
+    gkPlot.series=[gkSeries.ghost,gkSeries.tr,gkSeries.te];
+    gkPlot.ylog=false; gkPlot.fixedY=[0,104]; gkPlot.ylabel='정확도 (%)';
+    document.getElementById('gkTitle').textContent='정확도 vs 학습 스텝'+(gkOpt.xlogc.on?' (로그 축)':'');
+  }
+  gkPlot.xlog=gkOpt.xlogc.on;
+  const vl=[];
+  if(GK.memo)vl.push({x:GK.memo,label:'암기 완료',color:'#3E6B8C',align:'right',dx:-6});
+  if(GK.grok)vl.push({x:GK.grok,label:'그로킹!',color:'#C99227',align:'left',dx:6});
+  gkPlot.vlines=vl;
+  gkPlot.draw();
+}
+makeChips(document.getElementById('gkChips'),
+  [gkSeries.te,gkSeries.tr,gkSeries.ghost,gkOpt.xlogc,gkOpt.loss], gkRedraw);
+function gkGhostBuild(memoStep,maxStep){
+  // textbook expectation: test follows train almost immediately (S-curve around memoStep)
+  const xs=[],ys=[];
+  const m=memoStep||20;
+  for(let i=0;i<=70;i++){
+    const s=Math.pow(10,Math.log10(8)+(Math.log10(Math.max(maxStep,1000))-Math.log10(8))*i/70);
+    const v=100/(1+Math.exp(-(Math.log10(s)-Math.log10(m*1.8))*7));
+    xs.push(s);ys.push(Math.max(v, GK.sim?100/GK.sim.p:6));
+  }
+  gkSeries.ghost.x=xs;gkSeries.ghost.y=ys;
+}
+function gkReset(){
+  if(GK.raf)cancelAnimationFrame(GK.raf);
+  GK.sim=null;GK.running=false;GK.hist=[];GK.memo=null;GK.grok=null;
+  gkSeries.tr.x=[];gkSeries.tr.y=[];gkSeries.te.x=[];gkSeries.te.y=[];
+  gkSeries.ghost.x=[];gkSeries.ghost.y=[];
+  gkLossSeries.tr.x=[];gkLossSeries.tr.y=[];gkLossSeries.te.x=[];gkLossSeries.te.y=[];
+  document.getElementById('gkRun').disabled=false;
+  document.getElementById('gkPause').disabled=true;
+  document.getElementById('gkRun').textContent='▶ 학습 시작';
+  document.getElementById('gkSub').textContent='대기 중 — ▶ 학습 시작';
+  const bd=document.getElementById('gkBadge');bd.textContent='대기';bd.className='badge';
+  document.getElementById('gkStat').textContent='step 0 · 훈련 — · 테스트 —';
+  ['gkMemo','gkGrok','gkGap','gkData'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('gkFind').innerHTML='암기 시점과 그로킹 시점이 자동으로 감지되어 여기에 기록된다. λ=0 프리셋과 비교해 보라.';
+  gkRedraw();
+}
+function gkStart(){
+  if(GK.running)return;
+  if(!GK.sim){
+    const p=+document.getElementById('gkP').value;
+    const wd=+document.getElementById('gkWd').value;
+    const frac=+document.getElementById('gkFrac').value;
+    const seed=+document.getElementById('gkSeed').value||0;
+    const op=document.getElementById('gkOp').value;
+    const act=document.getElementById('gkAct').value;
+    const width=+document.getElementById('gkWidth').value;
+    const lr=+document.getElementById('gkLr').value;
+    GK.sim=makeGrok({p,width,frac,wd,lr,seed,act,op});
+    GK.hist=[];GK.memo=null;GK.grok=null;
+    const opSym=op==='add'?'a+b':op==='sub'?'a−b':'a×b';
+    document.getElementById('gkData').innerHTML=GK.sim.ntr+'<small> 훈련 / '+GK.sim.nte+' 시험 · '+opSym+'</small>';
+    gkGhostBuild(40,3000);
+  }
+  GK.running=true;
+  document.getElementById('gkRun').disabled=true;
+  document.getElementById('gkPause').disabled=false;
+  loop();
+}
+function loop(){
+  if(!GK.running)return;
+  const spf=+document.getElementById('gkSpeed').value; // steps per frame (eval-resolution chunks of 20)
+  const sim=GK.sim;
+  const evalEvery=20;
+  let done=false;
+  const budget=spf*evalEvery; // raw steps this frame
+  let s=0;
+  while(s<budget){
+    sim.trainStep(); s++;
+    if(sim.step%evalEvery===0){
+      const [tra,trl]=sim.evalTrain(),[tea,tel]=sim.evalTest();
+      GK.hist.push({s:sim.step,tra,tea,trl,tel});
+      gkSeries.tr.x.push(sim.step);gkSeries.tr.y.push(tra*100);
+      gkSeries.te.x.push(sim.step);gkSeries.te.y.push(tea*100);
+      gkLossSeries.tr.x.push(sim.step);gkLossSeries.tr.y.push(Math.max(trl,1e-9));
+      gkLossSeries.te.x.push(sim.step);gkLossSeries.te.y.push(Math.max(tel,1e-9));
+      if(GK.memo===null&&tra>0.99){GK.memo=sim.step;document.getElementById('gkMemo').innerHTML='step '+GK.memo;gkGhostBuild(GK.memo,Math.max(3000,sim.step*4));}
+      if(GK.grok===null&&tea>=0.95){GK.grok=sim.step;document.getElementById('gkGrok').innerHTML='step '+GK.grok;}
+      // badge + stats
+      const bd=document.getElementById('gkBadge');
+      if(GK.grok){bd.textContent='그로킹 — 일반화 달성';bd.className='badge grok';}
+      else if(GK.memo&&sim.step>GK.memo+100){bd.textContent='플래토 — 암기 상태 지속 중';bd.className='badge plateau';}
+      else if(GK.memo){bd.textContent='암기 완료';bd.className='badge memo';}
+      else {bd.textContent='학습 초기';bd.className='badge';}
+      document.getElementById('gkStat').textContent=`step ${sim.step} · 훈련 ${(tra*100).toFixed(0)}% · 테스트 ${(tea*100).toFixed(0)}%`;
+      if(GK.grok&&sim.step>=GK.grok+800){done=true;break;}
+      if(sim.step>=GK.maxSteps){done=true;break;}
+    }
+  }
+  document.getElementById('gkSub').textContent=`학습 중 — step ${sim.step.toLocaleString()} / 최대 ${GK.maxSteps.toLocaleString()}`;
+  gkRedraw();
+  if(done){
+    GK.running=false;
+    document.getElementById('gkPause').disabled=true;
+    document.getElementById('gkRun').disabled=false;
+    document.getElementById('gkRun').textContent='▶ 이어서 학습';
+    finishReport();
+    return;
+  }
+  GK.raf=requestAnimationFrame(loop);
+}
+function finishReport(){
+  const wd=+document.getElementById('gkWd').value;
+  const frac=+document.getElementById('gkFrac').value;
+  const act=document.getElementById('gkAct').value;
+  const op=document.getElementById('gkOp').value;
+  const opName=op==='add'?'덧셈':op==='sub'?'뺄셈':'곱셈';
+  const sub=document.getElementById('gkSub'), find=document.getElementById('gkFind');
+  if(GK.grok&&GK.memo){
+    const gap=GK.grok-GK.memo;
+    document.getElementById('gkGap').innerHTML=gap.toLocaleString()+'<small> 스텝</small>';
+    sub.textContent='완료 — 그로킹 관찰';
+    find.innerHTML=`<b>판정: 그로킹 재현 (모듈러 ${opName}).</b> 훈련 정확도는 step ${GK.memo}에 이미 100% — 답을 전부 외웠다. 그러나 테스트 정확도는 그 뒤 <b>${gap.toLocaleString()}스텝 동안</b> 바닥에 머물렀고(찍기 수준 ≈ ${(100/GK.sim.p).toFixed(0)}%), step ${GK.grok.toLocaleString()}에 와서야 95%를 돌파했다. 교과서의 점진적 학습 곡선(회녹색 점선)과 달리, 일반화는 ${(GK.grok/GK.memo).toFixed(0)}배 늦게 — 그리고 계단처럼 — 도착했다. 가중치 감쇠 λ=${wd}가 암기 회로를 침식하는 동안 일어난 일이다.${op!=='add'?' 덧셈이 아닌 과제에서도 같은 드라마가 반복된다 — 그로킹이 특정 연산의 우연이 아니라는 증거다.':''}`;
+  } else {
+    sub.textContent='완료 — 그로킹 미발생 (최대 스텝 도달)';
+    document.getElementById('gkGap').textContent='—';
+    if(wd===0){
+      find.innerHTML=`<b>판정: 그로킹 실패 — 예측대로.</b> λ=0이면 암기 회로에 ‘크기 세금’이 부과되지 않아 일반화 회로가 끝내 세력을 얻지 못한다. 훈련 100% / 테스트 바닥이 ${GK.maxSteps.toLocaleString()}스텝 내내 유지됐다. 가중치 감쇠가 그로킹의 필요 동력임을 보여주는 대조 실험.`;
+    } else if(act==='relu'){
+      find.innerHTML=`<b>판정: ReLU에서는 같은 예산 안에 점프가 오지 않았다.</b> h² 활성화는 두 입력의 곱 항을 정확히 만들 수 있어 모듈러 연산의 푸리에(주기) 회로를 깔끔하게 표현한다 — Gromov(2023)가 h²로 그로킹을 해석적으로 풀 수 있었던 이유다. ReLU는 같은 회로를 흉내 내는 데 훨씬 많은 뉴런과 스텝이 필요해 점프가 지평선 너머로 밀려난다. <b>활성화 함수의 선택이 ‘무엇을 배우기 쉬운가’ 자체를 바꾼다</b>는 것을 보여주는 비교 실험. h²로 되돌려 같은 시드로 재실행해 보라.`;
+    } else if(frac<0.45){
+      find.innerHTML=`<b>판정: 그로킹 실패 — 데이터 부족.</b> 훈련 쌍이 전체의 ${(frac*100).toFixed(0)}%뿐이면 일반화 회로(주기 구조)를 지탱할 단서가 부족하다. Power et al.(2022)이 보고한 ‘임계 데이터 비율’ 현상 — 비율을 50% 이상으로 올려 다시 시도해 보라.`;
+    } else {
+      find.innerHTML=`이 설정에서는 ${GK.maxSteps.toLocaleString()}스텝 안에 점프가 오지 않았다. 그로킹 시점은 시드·너비·학습률에 따라 크게 출렁인다(이 자체가 연구 대상이다). ‘▶ 이어서 학습’을 누르거나 학습률을 0.03으로 올려 재시도해 보라.`;
+    }
+  }
+}
+document.getElementById('gkRun').addEventListener('click',()=>{ if(!GK.sim||GK.sim.step>=GK.maxSteps){GK.maxSteps=Math.max(12000,(GK.sim?GK.sim.step:0)+8000);} gkStart(); });
+document.getElementById('gkPause').addEventListener('click',()=>{
+  GK.running=false;
+  if(GK.raf)cancelAnimationFrame(GK.raf);
+  document.getElementById('gkPause').disabled=true;
+  document.getElementById('gkRun').disabled=false;
+  document.getElementById('gkRun').textContent='▶ 이어서 학습';
+  document.getElementById('gkSub').textContent='일시정지 — step '+(GK.sim?GK.sim.step:0);
+});
+document.getElementById('gkReset').addEventListener('click',gkReset);
+document.getElementById('gkWd').addEventListener('input',e=>{document.getElementById('gkWdV').textContent=(+e.target.value).toFixed(1);});
+document.getElementById('gkFrac').addEventListener('input',e=>{document.getElementById('gkFracV').textContent=Math.round(e.target.value*100)+'%';});
+document.querySelectorAll('[data-gk]').forEach(b=>b.addEventListener('click',()=>{
+  const m=b.dataset.gk;
+  const wd=document.getElementById('gkWd'),fr=document.getElementById('gkFrac');
+  // 프리셋은 고급 변수를 기본값으로 되돌린 뒤 한 가지만 바꾼다 (변인 통제)
+  document.getElementById('gkOp').value='add';
+  document.getElementById('gkAct').value='quad';
+  document.getElementById('gkWidth').value='96';
+  document.getElementById('gkLr').value='0.01';
+  wd.value=1; fr.value=0.5;
+  if(m==='nowd'){wd.value=0;}
+  if(m==='lowdata'){fr.value=0.3;}
+  if(m==='mul'){document.getElementById('gkOp').value='mul';}
+  if(m==='relu'){document.getElementById('gkAct').value='relu';}
+  document.getElementById('gkWdV').textContent=(+wd.value).toFixed(1);
+  document.getElementById('gkFracV').textContent=Math.round(fr.value*100)+'%';
+  gkReset(); gkStart();
+}));
+gkReset();
+</script>
+</body>
+</html>
